@@ -2,10 +2,10 @@
 http://localhost:8765/actuator/health
 
 //Currency-conversion-feign-api-gateway
-http://localhost:8765/currency-conversion-microservices-new/from/USD/to/INR/quantity/10
+http://localhost:8765/currency-conversion-new/from/USD/to/INR/quantity/10
 
 //Currency-conversion-feign-api-gateway
-http://localhost:8765/currency-conversion-microservices-feign/from/USD/to/INR/quantity/10
+http://localhost:8765/currency-conversion-feign/from/USD/to/INR/quantity/10
 
 //currency-exchange-api-gateway
 http://localhost:8765/currency-exchange/from/USD/to/INR

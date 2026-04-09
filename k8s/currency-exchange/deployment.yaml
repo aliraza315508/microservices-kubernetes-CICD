@@ -1,0 +1,106 @@
+apiVersion : apps/v1
+kind: Deployment
+
+metadata:
+  name: currency-exchange
+  namespace: currency-system
+  labels:
+    app: currency-exchange
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: currency-exchange
+
+  template:
+    metadata:
+      labels:
+        app: currency-exchange
+
+    spec:
+      containers:
+        - name: currency-exchange
+          image: 295504962032.dkr.ecr.us-east-1.amazonaws.com/currency-exchange-service:v1
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8000
+
+          env:
+            - name: SERVER_PORT
+              value: "8000"
+
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              valueFrom:
+                configMapKeyRef:
+                  name: common-config
+                  key: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+
+
+
+
+            - name: CONFIG_SERVER_URL
+              valueFrom :
+                configMapKeyRef:
+                  name: common-config
+                  key: CONFIG_SERVER_URL
+
+
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: common-config
+                  key: DB_HOST
+
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: common-config
+                  key: DB_PORT
+
+
+
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: DB_USERNAME
+                  name: app-secrets
+
+
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: DB_PASSWORD
+                  name: app-secrets
+
+
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+
+            limits:
+              cpu: "300m"
+              memory: "512Mi"
+
+
+          readinessProbe:
+             httpGet:
+               path: /actuator/health
+               port: 8000
+             initialDelaySeconds: 90
+             periodSeconds: 20
+             timeoutSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              port: 8000
+              path: /actuator/health
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            timeoutSeconds: 5
+

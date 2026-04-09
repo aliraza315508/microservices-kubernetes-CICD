@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: common-config
+  namespace: currency-system
+
+data:
+
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://naming-server:8761/eureka"
+
+  CONFIG_SERVER_URL: ""
+
+  DB_HOST: "currency-db.ckfa664esyb5.us-east-1.rds.amazonaws.com"
+  DB_PORT: "5432"
+  DB_NAME: "postgres"

@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: currency-conversion
+  namespace: currency-system
+  labels:
+    app: currency-conversion
+
+spec:
+
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: currency-conversion
+
+  template:
+    metadata:
+      labels:
+        app: currency-conversion
+
+    spec:
+      containers:
+        - name: currency-conversion
+          image: 295504962032.dkr.ecr.us-east-1.amazonaws.com/currency-conversion-service:v1
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8100
+
+          env:
+            - name: SERVER_PORT
+              value: "8100"
+
+            - name:  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              valueFrom:
+                configMapKeyRef:
+                  name: common-config
+                  key: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+
+
+
+
+            - name: CONFIG_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: common-config
+                  key: CONFIG_SERVER_URL
+
+
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DB_USERNAME
+                  optional: true
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DB_PASSWORD
+                  optional: true
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "300m"
+              memory: "512Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8100
+            initialDelaySeconds: 25
+            periodSeconds: 10
+
+
+          livenessProbe:
+            httpGet:
+              port: 8100
+              path: /actuator/health
+            initialDelaySeconds: 45
+            periodSeconds: 20
