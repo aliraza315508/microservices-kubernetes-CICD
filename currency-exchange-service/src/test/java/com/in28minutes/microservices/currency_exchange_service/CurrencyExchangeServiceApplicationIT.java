@@ -12,7 +12,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("test")
-class CurrencyExchangeServiceApplicationTests {
+class CurrencyExchangeServiceApplicationIT {
 
 	@Container
 	static PostgreSQLContainer<?> postgres
