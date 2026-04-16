@@ -84,22 +84,24 @@ jobs:
             service_changed: ${{ needs.detect-changes.outputs.currency_conversion_service }}
             ecr_repository: currency-conversion-service
 
-    if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
-
     steps:
       - name: Checkout code
+        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         uses: actions/checkout@v5
 
       - name: Configure AWS credentials
+        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
+        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set image values
+        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         id: image
         shell: bash
         run: |
@@ -111,6 +113,7 @@ jobs:
           echo "latest_tag=latest" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
+        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.service_path }}
