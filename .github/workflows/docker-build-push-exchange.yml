@@ -1,6 +1,7 @@
 name: Workflow B - Build and Push to Amazon ECR
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -122,5 +123,3 @@ jobs:
           tags: |
             ${{ steps.image.outputs.image_uri }}:${{ steps.image.outputs.latest_tag }}
             ${{ steps.image.outputs.image_uri }}:${{ steps.image.outputs.sha_tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
