@@ -1,0 +1,50 @@
+# IntelliJ / IDE
+.idea/
+*.iml
+/shelf/
+/workspace.xml
+/queries/
+/dataSources/
+/dataSources.local.xml
+/httpRequests/
+
+# Java / Maven / Spring Boot
+**/target/
+**/build/
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+**/run.log
+**/run.err
+
+# Terraform
+**/.terraform/
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+*.tfplan
+tfplan
+.terraform.lock.hcl
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp
+*.tmp
+*.temp
+*.swp
+*.swo
