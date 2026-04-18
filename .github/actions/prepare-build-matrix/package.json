@@ -1,0 +1,11 @@
+{
+  "name": "prepare-build-matrix",
+  "version": "1.0.0",
+  "private": true ,
+  "description": "Local Github Action to detect changed services and generate build matrix" ,
+  "main" : "index.js" ,
+  "dependencies": {
+    "@actions/core" : "^1.11.1"
+  }
+
+}

@@ -1,0 +1,17 @@
+name: Prepare Build Matrix
+description: Detect changed services and return a build matrix for workflow B
+
+inputs:
+  current_sha:
+    description: Current commit SHA from workflow_run
+    required: true
+
+outputs:
+  build_matrix:
+    description: JSON array of services that should be built
+  changed_count:
+    description: Number of services selected for built
+
+runs:
+  using: node20
+  main: index.js

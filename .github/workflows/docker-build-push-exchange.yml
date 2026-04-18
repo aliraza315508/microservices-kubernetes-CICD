@@ -1,16 +1,11 @@
 name: Workflow B - Build and Push to Amazon ECR
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'naming-server/**'
-      - 'api-gateway/**'
-      - 'currency-exchange-service/**'
-      - 'currency-conversion-service/**'
-      - '.github/workflows/docker-build-push-exchange.yml'
+  workflow_run:
+    workflows:
+      - Java CI - Microservices
+    types:
+      - completed
 
 permissions:
   id-token: write
@@ -21,12 +16,13 @@ env:
   AWS_ACCOUNT_ID: 295504962032
 
 concurrency:
-  group: workflow-b-ecr-${{ github.ref }}
+  group: workflow-b-ecr-main
   cancel-in-progress: true
 
 jobs:
   detect-changes:
     name: Detect changed services
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       naming_server: ${{ steps.filter.outputs.naming_server }}
@@ -35,26 +31,45 @@ jobs:
       currency_conversion_service: ${{ steps.filter.outputs.currency_conversion_service }}
       workflow_file: ${{ steps.filter.outputs.workflow_file }}
     steps:
-      - name: Checkout code
+      - name: Checkout code at upstream SHA
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
 
       - name: Detect changed services
         id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            naming_server:
-              - 'naming-server/**'
-            api_gateway:
-              - 'api-gateway/**'
-            currency_exchange_service:
-              - 'currency-exchange-service/**'
-            currency_conversion_service:
-              - 'currency-conversion-service/**'
-            workflow_file:
-              - '.github/workflows/docker-build-push-exchange.yml'
+        shell: bash
+        run: |
+          CURRENT_SHA="${{ github.event.workflow_run.head_sha }}"
+          PREVIOUS_SHA="$(git rev-parse "${CURRENT_SHA}^" 2>/dev/null || true)"
+          
+          echo "Current SHA: $CURRENT_SHA"
+          echo "Previous SHA: $PREVIOUS_SHA"
+          
+          if [ -z "$PREVIOUS_SHA" ]; then
+            echo "No previous commit found. Marking all services are changed"
+            echo "naming_server=true" >> "$GITHUB_OUTPUT"
+            echo "api-gateway=true" >> "GITHUB_OUTPUT"
+            echo "currency_exchange_service=true" >> "$GITHUB_OUTPUT"
+            echo "currency_conversion_service=true" >> "$GITHUB_OUTPUT"
+            echo "workflow_file=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          git diff --name-only "$PREVIOUS_SHA" "$CURRENT_SHA" > changed_files.txt
+          
+          echo "Changed files:"
+          cat changed_files.txt || true
+          
+          if grep -q '^naming-server/' changed_files.txt; then
+            echo "naming_server=true >> "$GITHUB_OUTPUT"
+          else
+            echo "naming_server=false" >> "$GITHUB_OUTPUT"
+          fi
+          
+          
+          
 
   build-and-push:
     name: Build and Push - ${{ matrix.service_name }}
