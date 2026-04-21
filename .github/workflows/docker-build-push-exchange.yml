@@ -25,11 +25,9 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     outputs:
-      naming_server: ${{ steps.filter.outputs.naming_server }}
-      api_gateway: ${{ steps.filter.outputs.api_gateway }}
-      currency_exchange_service: ${{ steps.filter.outputs.currency_exchange_service }}
-      currency_conversion_service: ${{ steps.filter.outputs.currency_conversion_service }}
-      workflow_file: ${{ steps.filter.outputs.workflow_file }}
+      build_matrix: ${{ steps.matrix.outputs.build_matrix }}
+      changed_count: ${{ steps.matrix.outputs.changed_count }}
+
     steps:
       - name: Checkout code at upstream SHA
         uses: actions/checkout@v5
@@ -37,99 +35,67 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 2
 
-      - name: Detect changed services
-        id: filter
-        shell: bash
-        run: |
-          CURRENT_SHA="${{ github.event.workflow_run.head_sha }}"
-          PREVIOUS_SHA="$(git rev-parse "${CURRENT_SHA}^" 2>/dev/null || true)"
-          
-          echo "Current SHA: $CURRENT_SHA"
-          echo "Previous SHA: $PREVIOUS_SHA"
-          
-          if [ -z "$PREVIOUS_SHA" ]; then
-            echo "No previous commit found. Marking all services are changed"
-            echo "naming_server=true" >> "$GITHUB_OUTPUT"
-            echo "api-gateway=true" >> "GITHUB_OUTPUT"
-            echo "currency_exchange_service=true" >> "$GITHUB_OUTPUT"
-            echo "currency_conversion_service=true" >> "$GITHUB_OUTPUT"
-            echo "workflow_file=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          
-          git diff --name-only "$PREVIOUS_SHA" "$CURRENT_SHA" > changed_files.txt
-          
-          echo "Changed files:"
-          cat changed_files.txt || true
-          
-          if grep -q '^naming-server/' changed_files.txt; then
-            echo "naming_server=true >> "$GITHUB_OUTPUT"
-          else
-            echo "naming_server=false" >> "$GITHUB_OUTPUT"
-          fi
-          
-          
-          
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Install local action dependencies
+        working-directory: ./.github/actions/prepare-build-matrix
+        run: npm install
+
+      - name: Prepare build matrix
+        id: matrix
+        uses: ./.github/actions/prepare-build-matrix
+        with:
+          current_sha: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Show selected services
+        run: | 
+          echo "Changed count: ${{ steps.matrix.outputs.changed_count }}"
+          echo 'Build matrix: ${{ steps.matrix.outputs.build_matrix }}'
+
+      
 
   build-and-push:
     name: Build and Push - ${{ matrix.service_name }}
     runs-on: ubuntu-latest
     needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.changed_count != '0' }}
+
 
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service_name: naming-server
-            service_path: naming-server
-            service_changed: ${{ needs.detect-changes.outputs.naming_server }}
-            ecr_repository: naming-server
-
-          - service_name: api-gateway
-            service_path: api-gateway
-            service_changed: ${{ needs.detect-changes.outputs.api_gateway }}
-            ecr_repository: api-gateway
-
-          - service_name: currency-exchange-service
-            service_path: currency-exchange-service
-            service_changed: ${{ needs.detect-changes.outputs.currency_exchange_service }}
-            ecr_repository: currency-exchange-service
-
-          - service_name: currency-conversion-service
-            service_path: currency-conversion-service
-            service_changed: ${{ needs.detect-changes.outputs.currency_conversion_service }}
-            ecr_repository: currency-conversion-service
+        include: ${{ fromJSON(needs.detect-changes.outputs.build_matrix) }}
 
     steps:
       - name: Checkout code
-        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configure AWS credentials
-        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
-        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set image values
-        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         id: image
         shell: bash
         run: |
           IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.ecr_repository }}"
-          SHORT_SHA="${GITHUB_SHA::7}"
-
+          SHORT_SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA="${SHORT_SHA::7}"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
           echo "sha_tag=sha-$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "latest_tag=latest" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
-        if: ${{ matrix.service_changed == 'true' || needs.detect-changes.outputs.workflow_file == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.service_path }}
