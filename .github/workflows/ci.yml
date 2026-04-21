@@ -1,5 +1,6 @@
 name: Java CI - Microservices
 
+# test full rebuild
 on:
   push:
     branches:

@@ -1,5 +1,6 @@
 name: Workflow B - Build and Push to Amazon ECR
 
+# test full rebuild
 on:
   workflow_run:
     workflows:
