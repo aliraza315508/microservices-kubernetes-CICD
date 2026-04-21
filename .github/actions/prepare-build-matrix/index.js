@@ -1,7 +1,6 @@
 const core = require("@actions/core");
 const { execSync } = require("child_process");
 
-
 // All services for matrix
 const ALL_SERVICES = [
   {
@@ -26,9 +25,6 @@ const ALL_SERVICES = [
   }
 ];
 
-
-
-
 // Get previous commit SHA
 function getPreviousSha(currentSha) {
   try {
@@ -40,8 +36,6 @@ function getPreviousSha(currentSha) {
     return "";
   }
 }
-
-
 
 // Get changed files
 function getChangedFiles(previousSha, currentSha) {
@@ -58,9 +52,12 @@ function getChangedFiles(previousSha, currentSha) {
 
 // Build matrix based on changed files
 function buildMatrix(changedFiles) {
-  const workflowFile = ".github/workflows/docker-build-push-exchange.yml";
+  const workflowFiles = [
+    ".github/workflows/ci.yml",
+    ".github/workflows/docker-build-push-exchange.yml"
+  ];
 
-  if (changedFiles.includes(workflowFile)) {
+  if (changedFiles.some(file => workflowFiles.includes(file))) {
     return ALL_SERVICES;
   }
 
@@ -74,7 +71,6 @@ function buildMatrix(changedFiles) {
 
   return selected;
 }
-
 
 // Main function
 function run() {
@@ -101,12 +97,9 @@ function run() {
 
     core.setOutput("build_matrix", JSON.stringify(matrix));
     core.setOutput("changed_count", matrix.length.toString());
-
   } catch (error) {
     core.setFailed(error.message);
   }
 }
-
-
 
 run();
