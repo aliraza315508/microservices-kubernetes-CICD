@@ -1,0 +1,10 @@
+{
+  "name": "deploy-to-eks",
+  "version": "1.0.0",
+  "description": "GitHub Action to deploy microservices to AWS EKS",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "@actions/core": "^1.11.1"
+  }
+}

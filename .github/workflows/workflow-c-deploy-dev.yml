@@ -1,1 +1,74 @@
-name: Workflow C
+name: Workflow C - Deploy to EKS Dev
+
+on:
+  workflow_run:
+    workflows:
+      - Workflow B - Build and Push to Amazon ECR
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: 295504962032
+  EKS_CLUSTER_NAME: currency-system-cluster
+  K8S_NAMESPACE: currency-system
+
+concurrency:
+  group: workflow-c-deploy-dev-main
+  cancel-in-progress: true
+
+jobs:
+  deploy-dev:
+    name: Deploy to EKS Dev
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code at correct commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: .github/actions/deploy-to-eks/package-lock.json
+
+      - name: Install action dependencies
+        working-directory: .github/actions/deploy-to-eks
+        run: npm install
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Deploy to EKS
+        id: deploy
+        uses: ./.github/actions/deploy-to-eks
+        with:
+          aws_region: ${{ env.AWS_REGION }}
+          aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
+          eks_cluster_name: ${{ env.EKS_CLUSTER_NAME }}
+          k8s_namespace: ${{ env.K8S_NAMESPACE }}
+        env:
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Show deployment outputs
+        run: |
+          echo "FULL SHA: ${{ steps.deploy.outputs.full_sha }}"
+          echo "SHORT SHA: ${{ steps.deploy.outputs.short_sha }}"
+          echo "Image Tag: ${{ steps.deploy.outputs.image_tag }}"

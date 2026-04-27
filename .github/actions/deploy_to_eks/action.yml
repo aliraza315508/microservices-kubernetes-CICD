@@ -1,0 +1,33 @@
+name: Deploy to EKS dev
+description: Deploy Kubernetes manifests and update images using Workflow B SHA tag
+
+inputs:
+  aws_region:
+    description: AWS region
+    required: true
+
+  aws_account_id:
+    description: AWS account ID
+    required: true
+
+  eks_cluster_name:
+    description: Name of the EKS cluster
+    required: true
+
+  k8s_namespace:
+    description: Kubernetes namespace
+    required: true
+
+outputs:
+  full_sha:
+    description: Full commit SHA used for deployment
+
+  short_sha:
+    description: Short 7-character SHA used for deployment
+
+  image_tag:
+    description: Docker image tag used
+
+runs:
+  using: node20
+  main: index.js

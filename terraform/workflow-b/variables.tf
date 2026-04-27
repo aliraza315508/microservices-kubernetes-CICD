@@ -43,3 +43,9 @@ variable "ecr_repositories" {
     "currency-conversion-service"
   ]
 }
+
+variable "eks_cluster_name" {
+  description = "EKS cluster name for workflow C deployments"
+  type = string
+}
+
