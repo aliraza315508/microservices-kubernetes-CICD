@@ -6,7 +6,7 @@ kubernetes_version = "1.31"
 
 # Learning value.
 # In production, replace with your own IP/CIDR.
-allowed_cidr = "0.0.0.0/0"
+allowed_cidr = "your real public ip"
 
 node_instance_type = "t3.medium"
 

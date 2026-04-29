@@ -56,6 +56,8 @@ resource "aws_db_instance" "postgres" {
   max_allocated_storage = var.max_allocated_storage
   storage_type          = "gp3"
 
+  storage_encrypted = true
+
   db_name  = var.db_name
   username = var.db_username
   password = var.db_password
@@ -67,8 +69,8 @@ resource "aws_db_instance" "postgres" {
   multi_az            = false
 
   backup_retention_period = 7
-  skip_final_snapshot     = true
-  deletion_protection     = false
+  skip_final_snapshot     = var.skip_final_snapshot
+  deletion_protection     = var.deletion_protection
 
   auto_minor_version_upgrade = true
 

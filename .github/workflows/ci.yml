@@ -15,6 +15,11 @@ env:
   JAVA_VERSION: '17'
   JAVA_DISTRIBUTION: 'temurin'
 
+
+concurrency:
+  group: java-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 # force rebuild all services test
 jobs:
   ci:

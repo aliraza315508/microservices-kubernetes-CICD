@@ -46,6 +46,6 @@ variable "ecr_repositories" {
 
 variable "eks_cluster_name" {
   description = "EKS cluster name for workflow C deployments"
-  type = string
+  type        = string
 }
 

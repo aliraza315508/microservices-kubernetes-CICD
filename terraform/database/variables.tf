@@ -45,3 +45,14 @@ variable "max_allocated_storage" {
   type        = number
   default     = 100
 }
+variable "deletion_protection" {
+  description = "Whether deletion protection is enabled for the RDS instance"
+  type        = bool
+  default     = false
+}
+
+variable "skip_final_snapshot" {
+  description = "Whether to skip final snapshot when deleting the RDS instance"
+  type        = bool
+  default     = true
+}
