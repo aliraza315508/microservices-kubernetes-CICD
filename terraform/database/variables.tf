@@ -1,46 +1,47 @@
 variable "aws_region" {
-  description = "AWS region"
+  description = "AWS region where RDS will be created"
   type        = string
+  default     = "us-east-1"
 }
 
 variable "project_name" {
-  description = "Project name"
+  description = "Project name used for RDS resource naming"
   type        = string
-}
-
-variable "vpc_id" {
-  description = "EKS VPC ID"
-  type        = string
-}
-
-variable "private_subnet_ids" {
-  description = "Private subnets from EKS"
-  type        = list(string)
-}
-
-variable "allowed_cidr" {
-  description = "CIDR allowed to access RDS (use VPC CIDR)"
-  type        = string
+  default     = "currency-system"
 }
 
 variable "db_name" {
-  description = "Database name"
+  description = "PostgreSQL database name"
   type        = string
+  default     = "currencydb"
 }
 
 variable "db_username" {
-  description = "DB username"
+  description = "PostgreSQL master username"
   type        = string
   sensitive   = true
 }
 
 variable "db_password" {
-  description = "DB password"
+  description = "PostgreSQL master password"
   type        = string
   sensitive   = true
 }
 
-variable "dynamodb_table_name" {
-  description = "DynamoDB table name"
+variable "db_instance_class" {
+  description = "RDS instance class"
   type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "allocated_storage" {
+  description = "Initial RDS storage in GB"
+  type        = number
+  default     = 20
+}
+
+variable "max_allocated_storage" {
+  description = "Maximum autoscaled RDS storage in GB"
+  type        = number
+  default     = 100
 }

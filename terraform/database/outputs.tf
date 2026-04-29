@@ -1,29 +1,24 @@
-// RDS endpoint (host your app will connect to)
+output "postgres_address" {
+  description = "PostgreSQL hostname only. Use this as DB_HOST in Kubernetes ConfigMap."
+  value       = aws_db_instance.postgres.address
+}
+
 output "postgres_endpoint" {
-  description = "PostgreSQL RDS endpoint"
+  description = "PostgreSQL endpoint with port"
   value       = aws_db_instance.postgres.endpoint
 }
 
-// RDS database name
-output "postgres_db_name" {
-  description = "PostgreSQL database name"
-  value       = aws_db_instance.postgres.db_name
-}
-
-// RDS port
 output "postgres_port" {
   description = "PostgreSQL port"
   value       = aws_db_instance.postgres.port
 }
 
-// DynamoDB table name
-output "dynamodb_table_name" {
-  description = "DynamoDB table name"
-  value       = aws_dynamodb_table.currency_rates.name
+output "postgres_db_name" {
+  description = "PostgreSQL database name"
+  value       = aws_db_instance.postgres.db_name
 }
 
-// DynamoDB table ARN (needed later for IAM/IRSA)
-output "dynamodb_table_arn" {
-  description = "DynamoDB table ARN"
-  value       = aws_dynamodb_table.currency_rates.arn
+output "postgres_security_group_id" {
+  description = "Security group attached to RDS PostgreSQL"
+  value       = aws_security_group.postgres.id
 }

@@ -14,20 +14,14 @@ output "cluster_endpoint" {
 }
 
 output "vpc_id" {
-  description = "VPC ID"
-  value       = aws_vpc.eks_vpc.id
-}
-
-output "public_subnet_ids" {
-  description = "Public subnet IDs"
-  value       = aws_subnet.public_subnets[*].id
+  description = "VPC ID consumed from terraform/vpc"
+  value       = data.terraform_remote_state.vpc.outputs.vpc_id
 }
 
 output "private_subnet_ids" {
-  description = "Private subnet IDs"
-  value       = aws_subnet.private_subnets[*].id
+  description = "Private subnet IDs consumed from terraform/vpc"
+  value       = data.terraform_remote_state.vpc.outputs.private_subnet_ids
 }
-
 
 output "aws_load_balancer_controller_role_arn" {
   description = "IAM role ARN used by AWS Load Balancer Controller"

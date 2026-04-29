@@ -1,11 +1,13 @@
 variable "aws_region" {
-  description = "AWS region"
+  description = "AWS region where EKS will be created"
   type        = string
+  default     = "us-east-1"
 }
 
 variable "cluster_name" {
   description = "EKS cluster name"
   type        = string
+  default     = "currency-system-cluster"
 }
 
 variable "kubernetes_version" {
@@ -14,14 +16,8 @@ variable "kubernetes_version" {
   default     = "1.31"
 }
 
-variable "vpc_cidr" {
-  description = "CIDR block for VPC"
-  type        = string
-  default     = "10.0.0.0/16"
-}
-
 variable "allowed_cidr" {
-  description = "CIDR allowed to access public endpoints"
+  description = "CIDR allowed to access the EKS public API endpoint"
   type        = string
   default     = "0.0.0.0/0"
 }

@@ -1,131 +1,16 @@
-//will fetch and store available zones
-data "aws_availability_zones" "available" {}
+// Reads outputs from terraform/vpc without manually copying VPC/subnet IDs.
+data "terraform_remote_state" "vpc" {
+  backend = "local"
 
-
-// vpc for eks cluster cluster (eks_cluster is always deployed inside a VPC)
-resource "aws_vpc" "eks_vpc" {
-  cidr_block           = var.vpc_cidr
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  tags = {
-    Name = "${var.cluster_name}-vpc"
+  config = {
+    path = "../vpc/terraform.tfstate"
   }
 }
 
-//InternetGateway required for vpc and attached
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.eks_vpc.id
-
-  tags = {
-    Name = "${var.cluster_name}-igw"
-  }
-}
-
-
-//
-resource "aws_subnet" "public_subnets" {
-  count = 2
-
-  vpc_id                  = aws_vpc.eks_vpc.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name                                        = "${var.cluster_name}-public-${count.index + 1}"
-    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                    = "1"
-  }
-}
-
-
-//
-resource "aws_subnet" "private_subnets" {
-  count = 2
-
-  vpc_id            = aws_vpc.eks_vpc.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-
-  tags = {
-    Name                                           = "${var.cluster_name}-private-${count.index + 1}"
-    "kubernetes.io/cluster/${var.cluster_name}"   = "shared"
-    "kubernetes.io/role/internal-elb"             = "1"
-  }
-}
-
-
-//Elastic IP for NAT (nat gateway requires fix IP)
-resource "aws_eip" "nat_eip" {
-  domain = "vpc"
-
-  tags = {
-    Name = "${var.cluster_name}-nat-eip"
-  }
-}
-
-//create NAT Gateway in public subnet so  private subnet can access internet
-resource "aws_nat_gateway" "nat_gateway" {
-  allocation_id = aws_eip.nat_eip.id
-  subnet_id     = aws_subnet.public_subnets[0].id
-
-  tags = {
-    Name = "${var.cluster_name}-nat-gateway"
-  }
-
-  depends_on = [aws_internet_gateway.igw]
-}
-
-//route table to connect public subnet to internet
-resource "aws_route_table" "public_route_table" {
-  vpc_id = aws_vpc.eks_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
-  tags = {
-    Name = "${var.cluster_name}-public-rt"
-  }
-}
-
-// Attach public route table to both public subnets
-resource "aws_route_table_association" "public_associations" {
-  count = 2
-
-  subnet_id      = aws_subnet.public_subnets[count.index].id
-  route_table_id = aws_route_table.public_route_table.id
-}
-
-//Private route table sends private subnet internet traffic to NAT Gateway
-resource "aws_route_table" "private_route_table" {
-  vpc_id = aws_vpc.eks_vpc.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat_gateway.id
-  }
-
-  tags = {
-    Name = "${var.cluster_name}-private-rt"
-  }
-}
-
-
-// Attach private route table to both private subnets
-resource "aws_route_table_association" "private_associations" {
-  count = 2
-
-  subnet_id      = aws_subnet.private_subnets[count.index].id
-  route_table_id = aws_route_table.private_route_table.id
-}
-
-
-//IAM Role for EKS control plane
+// IAM role used by the EKS control plane.
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.cluster_name}-cluster-role"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -140,14 +25,13 @@ resource "aws_iam_role" "eks_cluster_role" {
   })
 }
 
-
-// Attach required AWS managed policy to EKS control plane role
+// Required AWS-managed policy for the EKS control plane.
 resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-// Create EKS cluster
+// Creates EKS inside the shared VPC created by terraform/vpc.
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
   version  = var.kubernetes_version
@@ -160,8 +44,8 @@ resource "aws_eks_cluster" "main" {
 
   vpc_config {
     subnet_ids = concat(
-      aws_subnet.public_subnets[*].id,
-      aws_subnet.private_subnets[*].id
+      data.terraform_remote_state.vpc.outputs.public_subnet_ids,
+      data.terraform_remote_state.vpc.outputs.private_subnet_ids
     )
 
     endpoint_public_access  = true
@@ -178,7 +62,7 @@ resource "aws_eks_cluster" "main" {
   }
 }
 
-// IAM role for EKS worker nodes
+// IAM role used by EKS managed worker nodes.
 resource "aws_iam_role" "eks_node_role" {
   name = "${var.cluster_name}-node-role"
 
@@ -196,30 +80,30 @@ resource "aws_iam_role" "eks_node_role" {
   })
 }
 
-// Allows worker nodes to join and communicate with EKS
+// Allows worker nodes to join and communicate with EKS.
 resource "aws_iam_role_policy_attachment" "node_worker_policy" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
-// Allows pod networking through AWS VPC CNI
+// Allows pod networking through AWS VPC CNI.
 resource "aws_iam_role_policy_attachment" "node_cni_policy" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-//Allows node to pull images from ECR
+// Allows worker nodes to pull Docker images from ECR.
 resource "aws_iam_role_policy_attachment" "node_ecr_policy" {
   role       = aws_iam_role.eks_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-// Create managed EKS worker node group in private subnets
+// Creates the managed worker node group in private subnets only.
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-node-group"
   node_role_arn   = aws_iam_role.eks_node_role.arn
-  subnet_ids      = aws_subnet.private_subnets[*].id
+  subnet_ids      = data.terraform_remote_state.vpc.outputs.private_subnet_ids
 
   instance_types = [var.node_instance_type]
 
@@ -240,17 +124,17 @@ resource "aws_eks_node_group" "main" {
   }
 }
 
-// Store EKS OIDC issuer URL in one place
+// Stores the EKS OIDC issuer URL for IRSA configuration.
 locals {
   eks_oidc_issuer = aws_eks_cluster.main.identity[0].oidc[0].issuer
 }
 
-// Gets TLS certificate from the EKS OIDC issuer
+// Reads TLS certificate details from the EKS OIDC issuer.
 data "tls_certificate" "eks_oidc" {
   url = local.eks_oidc_issuer
 }
 
-// Creates IAM OIDC provider for EKS IRSA
+// Creates the IAM OIDC provider required for IRSA.
 resource "aws_iam_openid_connect_provider" "eks" {
   url = local.eks_oidc_issuer
 
@@ -263,16 +147,14 @@ resource "aws_iam_openid_connect_provider" "eks" {
   ]
 }
 
-// IAM policy for AWS Load Balancer Controller
+// IAM policy for AWS Load Balancer Controller.
 resource "aws_iam_policy" "aws_load_balancer_controller" {
   name        = "${var.cluster_name}-aws-load-balancer-controller-policy"
   description = "IAM policy for AWS Load Balancer Controller"
-
-  policy = file("${path.module}/aws-load-balancer-controller-policy.json")
+  policy      = file("${path.module}/aws-load-balancer-controller-policy.json")
 }
 
-
-// Trust policy for AWS Load Balancer Controller service account
+// Trust policy allowing the ALB controller service account to assume its IAM role.
 data "aws_iam_policy_document" "aws_load_balancer_controller_assume_role" {
   statement {
     effect = "Allow"
@@ -306,19 +188,19 @@ data "aws_iam_policy_document" "aws_load_balancer_controller_assume_role" {
   }
 }
 
-// IAM role used by AWS Load Balancer Controller pod through IRSA
+// IAM role used by the AWS Load Balancer Controller pod through IRSA.
 resource "aws_iam_role" "aws_load_balancer_controller" {
   name               = "${var.cluster_name}-aws-load-balancer-controller-role"
   assume_role_policy = data.aws_iam_policy_document.aws_load_balancer_controller_assume_role.json
 }
 
-// Attach ALB controller IAM policy to the IAM role
+// Attaches the ALB controller IAM policy to the IAM role.
 resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller" {
   role       = aws_iam_role.aws_load_balancer_controller.name
   policy_arn = aws_iam_policy.aws_load_balancer_controller.arn
 }
 
-
+// Creates the Kubernetes service account used by the AWS Load Balancer Controller.
 resource "kubernetes_service_account" "aws_load_balancer_controller" {
   metadata {
     name      = "aws-load-balancer-controller"
@@ -334,7 +216,7 @@ resource "kubernetes_service_account" "aws_load_balancer_controller" {
   ]
 }
 
-// Installs AWS Load Balancer Controller through Helm
+// Installs AWS Load Balancer Controller through Helm.
 resource "helm_release" "aws_load_balancer_controller" {
   name       = "aws-load-balancer-controller"
   namespace  = "kube-system"
@@ -357,7 +239,7 @@ resource "helm_release" "aws_load_balancer_controller" {
 
   set {
     name  = "vpcId"
-    value = aws_vpc.eks_vpc.id
+    value = data.terraform_remote_state.vpc.outputs.vpc_id
   }
 
   set {
