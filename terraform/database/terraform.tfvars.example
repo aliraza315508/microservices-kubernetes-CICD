@@ -1,0 +1,15 @@
+aws_region = "us-east-1"
+
+project_name = "currency-system"
+
+db_name = "currencydb"
+
+db_username = "postgres"
+
+db_password = "CHANGE_ME_STRONG_PASSWORD"
+
+db_instance_class = "db.t4g.micro"
+
+allocated_storage = 20
+
+max_allocated_storage = 100

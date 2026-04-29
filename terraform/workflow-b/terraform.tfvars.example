@@ -1,0 +1,20 @@
+aws_region = "us-east-1"
+
+github_org = "REPLACE_WITH_GITHUB_USERNAME_OR_ORG"
+
+github_repo = "REPLACE_WITH_REPOSITORY_NAME"
+
+github_branch = "main"
+
+role_name = "github-actions-workflow-b-ecr-role"
+
+policy_name = "github-actions-workflow-b-ecr-policy"
+
+ecr_repositories = [
+  "naming-server",
+  "api-gateway",
+  "currency-exchange-service",
+  "currency-conversion-service"
+]
+
+eks_cluster_name = "currency-system-cluster"
