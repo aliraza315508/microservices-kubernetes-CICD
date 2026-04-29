@@ -27,3 +27,8 @@ output "aws_load_balancer_controller_role_arn" {
   description = "IAM role ARN used by AWS Load Balancer Controller"
   value       = aws_iam_role.aws_load_balancer_controller.arn
 }
+
+output "cluster_security_group_id" {
+  description = "EKS cluster security group ID. Database stack can allow PostgreSQL traffic from EKS."
+  value       = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+}

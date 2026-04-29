@@ -21,3 +21,9 @@ variable "az_count" {
   type        = number
   default     = 2
 }
+
+variable "cluster_name" {
+  description = "EKS cluster name. Used for Kubernetes subnet discovery tags. Must match terraform/eks var.cluster_name."
+  type        = string
+  default     = "currency-system-cluster"
+}

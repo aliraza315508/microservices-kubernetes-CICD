@@ -1,4 +1,5 @@
 // Reads outputs from terraform/vpc so RDS uses the same VPC/private subnets as EKS.
+// Reads outputs from terraform/vpc so RDS uses the same VPC/private subnets as EKS.
 data "terraform_remote_state" "vpc" {
   backend = "local"
 
@@ -20,15 +21,15 @@ resource "aws_db_subnet_group" "postgres" {
 // Security group for RDS PostgreSQL.
 resource "aws_security_group" "postgres" {
   name        = "${var.project_name}-postgres-sg"
-  description = "Allow PostgreSQL access from the shared VPC"
+  description = "Allow PostgreSQL access from EKS only"
   vpc_id      = data.terraform_remote_state.vpc.outputs.vpc_id
 
   ingress {
-    description = "PostgreSQL from VPC"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = [data.terraform_remote_state.vpc.outputs.vpc_cidr]
+    description              = "PostgreSQL from EKS cluster security group only"
+    from_port                = 5432
+    to_port                  = 5432
+    protocol                 = "tcp"
+    source_security_group_id = data.terraform_remote_state.eks.outputs.cluster_security_group_id
   }
 
   egress {
@@ -41,6 +42,15 @@ resource "aws_security_group" "postgres" {
 
   tags = {
     Name = "${var.project_name}-postgres-sg"
+  }
+}
+
+// Reads outputs from terraform/eks so RDS can allow traffic from the EKS cluster security group.
+data "terraform_remote_state" "eks" {
+  backend = "local"
+
+  config = {
+    path = "../eks/terraform.tfstate"
   }
 }
 

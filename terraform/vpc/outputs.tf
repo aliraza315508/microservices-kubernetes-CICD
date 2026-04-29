@@ -3,6 +3,11 @@ output "aws_region" {
   value       = var.aws_region
 }
 
+output "cluster_name" {
+  description = "EKS cluster name used by Kubernetes subnet discovery tags"
+  value       = var.cluster_name
+}
+
 output "project_name" {
   description = "Project name"
   value       = var.project_name

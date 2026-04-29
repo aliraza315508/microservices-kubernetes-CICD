@@ -7,6 +7,7 @@ data "terraform_remote_state" "vpc" {
   }
 }
 
+
 // IAM role used by the EKS control plane.
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.cluster_name}-cluster-role"
@@ -98,12 +99,14 @@ resource "aws_iam_role_policy_attachment" "node_ecr_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+
 // Creates the managed worker node group in private subnets only.
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-node-group"
   node_role_arn   = aws_iam_role.eks_node_role.arn
-  subnet_ids      = data.terraform_remote_state.vpc.outputs.private_subnet_ids
+
+  subnet_ids = data.terraform_remote_state.vpc.outputs.private_subnet_ids
 
   instance_types = [var.node_instance_type]
 
