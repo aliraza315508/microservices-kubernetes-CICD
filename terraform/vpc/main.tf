@@ -120,3 +120,27 @@ resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
 }
+
+// Shared application security group.
+// This SG is created in the VPC layer so other Terraform stacks can depend on it
+// without depending directly on EKS.
+//
+// EKS worker nodes will attach this SG.
+// RDS will allow PostgreSQL traffic from this SG.
+resource "aws_security_group" "app" {
+  name        = "${var.project_name}-app-sg"
+  description = "Shared application security group for workloads that need private access"
+  vpc_id      = aws_vpc.main.id
+
+  egress {
+    description = "Allow outbound traffic from application workloads"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-app-sg"
+  }
+}

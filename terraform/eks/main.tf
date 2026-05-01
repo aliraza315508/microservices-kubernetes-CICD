@@ -110,6 +110,11 @@ resource "aws_eks_node_group" "main" {
 
   instance_types = [var.node_instance_type]
 
+  launch_template {
+    id      = aws_launch_template.eks_nodes.id
+    version = "$Latest"
+  }
+
   scaling_config {
     desired_size = var.desired_nodes
     min_size     = var.min_nodes
@@ -259,4 +264,39 @@ resource "helm_release" "aws_load_balancer_controller" {
     kubernetes_service_account.aws_load_balancer_controller,
     aws_iam_role_policy_attachment.aws_load_balancer_controller
   ]
+}
+
+// Launch template for EKS worker nodes.
+// This lets us attach the shared app security group from terraform/vpc to the worker nodes.
+//
+// Important:
+// When custom security groups are provided through a launch template,
+// include the EKS cluster security group as well as the app security group.
+resource "aws_launch_template" "eks_nodes" {
+  name_prefix = "${var.cluster_name}-nodes-"
+
+  vpc_security_group_ids = [
+    aws_eks_cluster.main.vpc_config[0].cluster_security_group_id,
+    data.terraform_remote_state.vpc.outputs.app_security_group_id
+  ]
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = "${var.cluster_name}-worker-node"
+    }
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+
+    tags = {
+      Name = "${var.cluster_name}-worker-volume"
+    }
+  }
+
+  tags = {
+    Name = "${var.cluster_name}-node-launch-template"
+  }
 }

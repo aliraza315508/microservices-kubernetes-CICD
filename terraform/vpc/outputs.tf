@@ -32,3 +32,8 @@ output "private_subnet_ids" {
   description = "Private subnet IDs for EKS worker nodes and RDS"
   value       = aws_subnet.private[*].id
 }
+
+output "app_security_group_id" {
+  description = "Shared application security group ID used by EKS workloads to access private resources like RDS"
+  value       = aws_security_group.app.id
+}

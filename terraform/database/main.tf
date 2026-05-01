@@ -18,18 +18,20 @@ resource "aws_db_subnet_group" "postgres" {
   }
 }
 
-// Security group for RDS PostgreSQL.
+/// Security group for RDS PostgreSQL.
+// RDS does not depend on EKS directly.
+// It allows PostgreSQL traffic from the shared app security group created in terraform/vpc.
 resource "aws_security_group" "postgres" {
   name        = "${var.project_name}-postgres-sg"
-  description = "Allow PostgreSQL access from EKS only"
+  description = "Allow PostgreSQL access from application workloads"
   vpc_id      = data.terraform_remote_state.vpc.outputs.vpc_id
 
   ingress {
-    description              = "PostgreSQL from EKS cluster security group only"
+    description              = "PostgreSQL from shared application security group"
     from_port                = 5432
     to_port                  = 5432
     protocol                 = "tcp"
-    source_security_group_id = data.terraform_remote_state.eks.outputs.cluster_security_group_id
+    source_security_group_id = data.terraform_remote_state.vpc.outputs.app_security_group_id
   }
 
   egress {
@@ -45,14 +47,6 @@ resource "aws_security_group" "postgres" {
   }
 }
 
-// Reads outputs from terraform/eks so RDS can allow traffic from the EKS cluster security group.
-data "terraform_remote_state" "eks" {
-  backend = "local"
-
-  config = {
-    path = "../eks/terraform.tfstate"
-  }
-}
 
 // Creates private AWS RDS PostgreSQL for the currency-exchange service.
 resource "aws_db_instance" "postgres" {

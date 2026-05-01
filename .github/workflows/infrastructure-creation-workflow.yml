@@ -1,0 +1,165 @@
+name: Terraform Infrastructure
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/vpc/**"
+      - "terraform/database/**"
+      - "terraform/eks/**"
+      - "terraform/workflow-b/**"
+      - ".github/workflows/terraform-infrastructure-workflow.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-infrastructure
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  TERRAFORM_VERSION: 1.9.8
+
+jobs:
+  terraform-infrastructure:
+    name: Apply Terraform Infrastructure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # ------------------------------------------------------------
+      # 1. VPC
+      # Creates the shared network foundation:
+      # VPC, public subnets, private subnets, route tables, NAT, app SG.
+      # ------------------------------------------------------------
+
+      - name: Terraform fmt - VPC
+        working-directory: terraform/vpc
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init - VPC
+        working-directory: terraform/vpc
+        run: terraform init
+
+      - name: Terraform validate - VPC
+        working-directory: terraform/vpc
+        run: terraform validate
+
+      - name: Terraform plan - VPC
+        working-directory: terraform/vpc
+        run: |
+          terraform plan \
+            -input=false \
+            -out=tfplan
+
+      - name: Terraform apply - VPC
+        working-directory: terraform/vpc
+        run: terraform apply -input=false -auto-approve tfplan
+
+      # ------------------------------------------------------------
+      # 2. Database
+      # Creates RDS PostgreSQL inside the VPC private subnets.
+      # In Option 2, database depends only on VPC, not EKS.
+      # ------------------------------------------------------------
+
+      - name: Terraform fmt - Database
+        working-directory: terraform/database
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init - Database
+        working-directory: terraform/database
+        run: terraform init
+
+      - name: Terraform validate - Database
+        working-directory: terraform/database
+        run: terraform validate
+
+      - name: Terraform plan - Database
+        working-directory: terraform/database
+        run: |
+          terraform plan \
+            -input=false \
+            -out=tfplan
+
+      - name: Terraform apply - Database
+        working-directory: terraform/database
+        run: terraform apply -input=false -auto-approve tfplan
+
+      # ------------------------------------------------------------
+      # 3. EKS
+      # Creates EKS cluster, node group, OIDC provider,
+      # and AWS Load Balancer Controller resources.
+      # EKS reads VPC outputs.
+      # ------------------------------------------------------------
+
+      - name: Terraform fmt - EKS
+        working-directory: terraform/eks
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init - EKS
+        working-directory: terraform/eks
+        run: terraform init
+
+      - name: Terraform validate - EKS
+        working-directory: terraform/eks
+        run: terraform validate
+
+      - name: Terraform plan - EKS
+        working-directory: terraform/eks
+        run: |
+          terraform plan \
+            -input=false \
+            -out=tfplan
+
+      - name: Terraform apply - EKS
+        working-directory: terraform/eks
+        run: terraform apply -input=false -auto-approve tfplan
+
+      # ------------------------------------------------------------
+      # 4. workflow-b / CI-CD infrastructure
+      # Creates ECR repositories, GitHub Actions IAM role,
+      # GitHub OIDC provider, and EKS access entry/policy.
+      # This must run after EKS because EKS access entries require
+      # the cluster to already exist.
+      # ------------------------------------------------------------
+
+      - name: Terraform fmt - Workflow B
+        working-directory: terraform/workflow-b
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init - Workflow B
+        working-directory: terraform/workflow-b
+        run: terraform init
+
+      - name: Terraform validate - Workflow B
+        working-directory: terraform/workflow-b
+        run: terraform validate
+
+      - name: Terraform plan - Workflow B
+        working-directory: terraform/workflow-b
+        run: |
+          terraform plan \
+            -input=false \
+            -out=tfplan
+
+      - name: Terraform apply - Workflow B
+        working-directory: terraform/workflow-b
+        run: terraform apply -input=false -auto-approve tfplan
