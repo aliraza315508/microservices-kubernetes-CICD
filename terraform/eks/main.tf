@@ -1,9 +1,13 @@
 // Reads outputs from terraform/vpc without manually copying VPC/subnet IDs.
 data "terraform_remote_state" "vpc" {
-  backend = "local"
+  backend = "s3"
 
   config = {
-    path = "../vpc/terraform.tfstate"
+    bucket         = var.terraform_state_bucket_name
+    key            = "vpc/terraform.tfstate"
+    region         = var.aws_region
+    dynamodb_table = var.terraform_lock_table_name
+    encrypt        = true
   }
 }
 

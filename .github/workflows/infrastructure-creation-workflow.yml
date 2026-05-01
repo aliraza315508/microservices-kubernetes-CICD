@@ -11,7 +11,7 @@ on:
       - "terraform/database/**"
       - "terraform/eks/**"
       - "terraform/workflow-b/**"
-      - ".github/workflows/terraform-infrastructure-workflow.yml"
+      - ".github/workflows/infrastructure-creation-workflow.yml"
 
 permissions:
   contents: read
@@ -23,6 +23,18 @@ concurrency:
 env:
   AWS_REGION: us-east-1
   TERRAFORM_VERSION: 1.9.8
+
+  TF_VAR_terraform_state_bucket_name: ${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}
+  TF_VAR_terraform_lock_table_name: currency-system-terraform-locks
+
+  TF_VAR_db_username: ${{ secrets.DB_USERNAME }}
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+
+  TF_VAR_github_org: aliraza315508
+  TF_VAR_github_repo: microservices-kubernetes-CICD
+  TF_VAR_eks_cluster_name: currency-system-cluster
+
+
 
 jobs:
   terraform-infrastructure:
