@@ -1,8 +1,8 @@
 aws_region = "us-east-1"
 
-github_org = "REPLACE_WITH_GITHUB_USERNAME_OR_ORG"
+github_org = "aliraza315508"
 
-github_repo = "REPLACE_WITH_REPOSITORY_NAME"
+github_repo = "microservices-kubernetes-CICD"
 
 github_branch = "main"
 

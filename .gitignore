@@ -32,11 +32,17 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-*.tfvars
-*.tfvars.json
 *.tfplan
 tfplan
 .terraform.lock.hcl
+
+# Ignore private/local tfvars if you create them later
+*.auto.tfvars
+*.tfvars.json
+
+# Allow committed non-sensitive Terraform tfvars
+!terraform/**/terraform.tfvars
+!terraform/**/*.tfvars.example
 
 # OS files
 .DS_Store

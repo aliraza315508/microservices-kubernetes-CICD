@@ -20,6 +20,7 @@ concurrency:
 env:
   AWS_REGION: us-east-1
   TF_WORKING_DIR: terraform/state-management
+  TERRAFORM_VERSION: 1.9.8
 
 jobs:
   terraform-state-management:
@@ -37,7 +38,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.8
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Configure AWS credentials for bootstrap
         uses: aws-actions/configure-aws-credentials@v4
