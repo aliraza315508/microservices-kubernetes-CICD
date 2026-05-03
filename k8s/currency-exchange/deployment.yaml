@@ -1,4 +1,4 @@
-apiVersion : apps/v1
+apiVersion: apps/v1
 kind: Deployment
 
 metadata:
@@ -38,45 +38,41 @@ spec:
                   name: common-config
                   key: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
 
-
-
-
             - name: CONFIG_SERVER_URL
-              valueFrom :
+              valueFrom:
                 configMapKeyRef:
                   name: common-config
                   key: CONFIG_SERVER_URL
 
-
             - name: DB_HOST
               valueFrom:
-                configMapKeyRef:
-                  name: common-config
+                secretKeyRef:
+                  name: app-secrets
                   key: DB_HOST
 
             - name: DB_PORT
               valueFrom:
-                configMapKeyRef:
-                  name: common-config
+                secretKeyRef:
+                  name: app-secrets
                   key: DB_PORT
 
-
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DB_NAME
 
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
-                  key: DB_USERNAME
                   name: app-secrets
-
-
+                  key: DB_USERNAME
 
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  key: DB_PASSWORD
                   name: app-secrets
-
-
+                  key: DB_PASSWORD
 
           resources:
             requests:
@@ -87,14 +83,13 @@ spec:
               cpu: "300m"
               memory: "512Mi"
 
-
           readinessProbe:
-             httpGet:
-               path: /actuator/health
-               port: 8000
-             initialDelaySeconds: 90
-             periodSeconds: 20
-             timeoutSeconds: 5
+            httpGet:
+              path: /actuator/health
+              port: 8000
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            timeoutSeconds: 5
 
           livenessProbe:
             httpGet:
@@ -103,4 +98,3 @@ spec:
             initialDelaySeconds: 90
             periodSeconds: 20
             timeoutSeconds: 5
-
