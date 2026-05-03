@@ -69,7 +69,9 @@ jobs:
 
       - name: Terraform init - VPC
         working-directory: terraform/vpc
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}"
 
       - name: Terraform validate - VPC
         working-directory: terraform/vpc
@@ -98,7 +100,9 @@ jobs:
 
       - name: Terraform init - Database
         working-directory: terraform/database
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}"
 
       - name: Terraform validate - Database
         working-directory: terraform/database
@@ -128,7 +132,9 @@ jobs:
 
       - name: Terraform init - EKS
         working-directory: terraform/eks
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}"
 
       - name: Terraform validate - EKS
         working-directory: terraform/eks
@@ -159,7 +165,9 @@ jobs:
 
       - name: Terraform init - Workflow B
         working-directory: terraform/workflow-b
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}"
 
       - name: Terraform validate - Workflow B
         working-directory: terraform/workflow-b
