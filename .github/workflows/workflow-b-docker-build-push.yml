@@ -1,6 +1,5 @@
 name: Workflow B - Build and Push to Amazon ECR
 
-# test full rebuild
 on:
   workflow_run:
     workflows:
@@ -14,7 +13,8 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  AWS_ACCOUNT_ID: 295504962032
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
 
 concurrency:
   group: workflow-b-ecr-main
@@ -25,6 +25,7 @@ jobs:
     name: Detect changed services
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+
     outputs:
       build_matrix: ${{ steps.matrix.outputs.build_matrix }}
       changed_count: ${{ steps.matrix.outputs.changed_count }}
@@ -33,7 +34,7 @@ jobs:
       - name: Checkout code at upstream SHA
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ env.COMMIT_SHA }}
           fetch-depth: 2
 
       - name: Setup Node.js
@@ -41,7 +42,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install local action dependencies
+      - name: Install prepare-build-matrix dependencies
         working-directory: ./.github/actions/prepare-build-matrix
         run: npm install
 
@@ -49,14 +50,12 @@ jobs:
         id: matrix
         uses: ./.github/actions/prepare-build-matrix
         with:
-          current_sha: ${{ github.event.workflow_run.head_sha }}
+          current_sha: ${{ env.COMMIT_SHA }}
 
       - name: Show selected services
-        run: | 
+        run: |
           echo "Changed count: ${{ steps.matrix.outputs.changed_count }}"
           echo 'Build matrix: ${{ steps.matrix.outputs.build_matrix }}'
-
-      
 
   build-and-push:
     name: Build and Push - ${{ matrix.service_name }}
@@ -64,17 +63,25 @@ jobs:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.changed_count != '0' }}
 
-
     strategy:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.detect-changes.outputs.build_matrix) }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout code at upstream SHA
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ env.COMMIT_SHA }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Install prepare-image-metadata dependencies
+        working-directory: ./.github/actions/prepare-image-metadata
+        run: npm install
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -85,16 +92,14 @@ jobs:
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set image values
+      - name: Prepare image metadata
         id: image
-        shell: bash
-        run: |
-          IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.ecr_repository }}"
-          SHORT_SHA="${{ github.event.workflow_run.head_sha }}"
-          SHORT_SHA="${SHORT_SHA::7}"
-          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
-          echo "sha_tag=sha-$SHORT_SHA" >> "$GITHUB_OUTPUT"
-          echo "latest_tag=latest" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/prepare-image-metadata
+        with:
+          aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
+          aws_region: ${{ env.AWS_REGION }}
+          ecr_repository: ${{ matrix.ecr_repository }}
+          commit_sha: ${{ env.COMMIT_SHA }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -102,6 +107,45 @@ jobs:
           context: ./${{ matrix.service_path }}
           file: ./${{ matrix.service_path }}/Dockerfile
           push: true
-          tags: |
-            ${{ steps.image.outputs.image_uri }}:${{ steps.image.outputs.latest_tag }}
-            ${{ steps.image.outputs.image_uri }}:${{ steps.image.outputs.sha_tag }}
+          tags: ${{ steps.image.outputs.all_tags }}
+
+  create-deployment-metadata:
+    name: Create deployment metadata
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+      - build-and-push
+
+    if: ${{ always() && needs.detect-changes.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
+
+    steps:
+      - name: Checkout code at upstream SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.COMMIT_SHA }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Install create-deployment-metadata dependencies
+        working-directory: ./.github/actions/create-deployment-metadata
+        run: npm install
+
+      - name: Create deployment metadata
+        id: metadata
+        uses: ./.github/actions/create-deployment-metadata
+        with:
+          commit_sha: ${{ env.COMMIT_SHA }}
+          build_matrix: ${{ needs.detect-changes.outputs.build_matrix }}
+          aws_region: ${{ env.AWS_REGION }}
+          aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
+
+      - name: Upload deployment metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-metadata
+          path: ${{ steps.metadata.outputs.metadata_file }}
+          if-no-files-found: error
+          retention-days: 7

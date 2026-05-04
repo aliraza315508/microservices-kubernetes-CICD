@@ -1,0 +1,27 @@
+name: Prepare Image Metadata
+description: Creates Docker image tags for one service image
+
+inputs:
+  aws_account_id:
+    description: AWS account ID that owns the ECR repository
+    required: true
+
+  aws_region:
+    description: AWS region where the ECR repository exists
+    required: true
+
+  ecr_repository:
+    description: ECR repository name for the service
+    required: true
+
+  commit_sha:
+    description: Full commit SHA used for the immutable Docker image tag
+    required: true
+
+outputs:
+  all_tags:
+    description: Multiline Docker tags value for docker/build-push-action
+
+runs:
+  using: node20
+  main: index.js

@@ -1,0 +1,10 @@
+{
+  "name": "prepare-image-metadata",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.11.1"
+  }
+}
