@@ -6,17 +6,25 @@ on:
       - Workflow B - Build and Push to Amazon ECR
     types:
       - completed
+
   workflow_dispatch:
+    inputs:
+      workflow_b_run_id:
+        description: Workflow B run ID to download deployment metadata from
+        required: true
+        type: string
 
 permissions:
   id-token: write
   contents: read
+  actions: read
 
 env:
   AWS_REGION: us-east-1
-  AWS_ACCOUNT_ID: 295504962032
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
   EKS_CLUSTER_NAME: currency-system-cluster
   K8S_NAMESPACE: currency-system
+  DEPLOYMENT_METADATA_FILE: deployment-metadata/deployment-metadata.json
 
 concurrency:
   group: workflow-c-deploy-dev-main
@@ -41,9 +49,9 @@ jobs:
           cache: npm
           cache-dependency-path: .github/actions/deploy-to-eks/package-lock.json
 
-      - name: Install action dependencies
+      - name: Install deploy-to-eks dependencies
         working-directory: .github/actions/deploy-to-eks
-        run: npm install
+        run: npm ci
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -56,19 +64,28 @@ jobs:
         with:
           version: latest
 
+      - name: Download deployment metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-metadata
+          path: deployment-metadata
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.workflow_b_run_id }}
+
+      - name: Show deployment metadata
+        run: cat "${{ env.DEPLOYMENT_METADATA_FILE }}"
+
       - name: Deploy to EKS
         id: deploy
         uses: ./.github/actions/deploy-to-eks
         with:
-          aws_region: ${{ env.AWS_REGION }}
-          aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
           eks_cluster_name: ${{ env.EKS_CLUSTER_NAME }}
           k8s_namespace: ${{ env.K8S_NAMESPACE }}
-        env:
-          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          deployment_metadata_file: ${{ env.DEPLOYMENT_METADATA_FILE }}
 
       - name: Show deployment outputs
         run: |
           echo "FULL SHA: ${{ steps.deploy.outputs.full_sha }}"
           echo "SHORT SHA: ${{ steps.deploy.outputs.short_sha }}"
           echo "Image Tag: ${{ steps.deploy.outputs.image_tag }}"
+          echo "Deployed services: ${{ steps.deploy.outputs.deployed_services }}"
