@@ -33,7 +33,7 @@ spec:
             - name: SERVER_PORT
               value: "8100"
 
-            - name:  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
               valueFrom:
                 configMapKeyRef:
                   name: common-config
