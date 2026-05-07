@@ -1,0 +1,35 @@
+name: Run Terraform Infrastructure
+description: Runs dependency-aware Terraform plan/apply for infrastructure stacks
+
+inputs:
+  action:
+    description: Terraform action to run. On push, this will be forced to plan.
+    required: true
+    default: plan
+
+  stack:
+    description: Terraform stack to run: auto, all, vpc, database, eks, workflow-b
+    required: true
+    default: auto
+
+  terraform_state_bucket_name:
+    description: S3 bucket name used for Terraform remote state
+    required: true
+
+  terraform_lock_table_name:
+    description: DynamoDB table name used for Terraform state locking
+    required: false
+
+outputs:
+  final_action:
+    description: Final Terraform action used by the action
+
+  selected_stacks:
+    description: Space-separated Terraform stacks selected to run
+
+  should_run:
+    description: Whether any Terraform stack should run
+
+runs:
+  using: node20
+  main: index.js

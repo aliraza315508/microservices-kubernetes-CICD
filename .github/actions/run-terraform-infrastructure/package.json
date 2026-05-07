@@ -1,0 +1,11 @@
+{
+  "name": "run-terraform-infrastructure",
+  "version": "1.0.0",
+  "description": "Dependency-aware Terraform infrastructure runner for GitHub Actions",
+  "main": "index.js",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.11.1"
+  }
+}
