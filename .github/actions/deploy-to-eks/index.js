@@ -2,11 +2,13 @@ const core = require("@actions/core");
 const fs = require("fs");
 const { execSync } = require("child_process");
 
+// Runs a shell command and streams the output to GitHub Actions logs.
 function run(command) {
   core.info(`Running: ${command}`);
   execSync(command, { stdio: "inherit" });
 }
 
+// Reads and parses the deployment metadata JSON file.
 function readDeploymentMetadata(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Deployment metadata file not found: ${filePath}`);
@@ -21,6 +23,7 @@ function readDeploymentMetadata(filePath) {
   }
 }
 
+// Validates required top-level metadata fields and required service fields.
 function validateMetadata(metadata) {
   const requiredFields = [
     "commit_sha",
@@ -80,14 +83,17 @@ function validateMetadata(metadata) {
   }
 }
 
+// Updates kubeconfig so kubectl can connect to the target EKS cluster.
 function updateKubeconfig(clusterName, region) {
   run(`aws eks update-kubeconfig --region "${region}" --name "${clusterName}"`);
 }
 
+// Applies shared Kubernetes resources such as namespace, configmap, and secrets.
 function applyCommonResources() {
   run("kubectl apply -k k8s/common");
 }
 
+// Applies Kubernetes manifests only for the services selected for deployment.
 function applyServiceResources(services) {
   const uniqueKustomizePaths = [
     ...new Set(services.map((service) => service.k8s_kustomize_path))
@@ -98,10 +104,12 @@ function applyServiceResources(services) {
   }
 }
 
+// Applies ingress resources after service resources are applied.
 function applyIngressResources() {
   run("kubectl apply -k k8s/ingress");
 }
 
+// Updates each selected Kubernetes deployment with the new ECR image tag.
 function updateServiceImages(metadata, namespace) {
   const { aws_account_id: accountId, aws_region: region, image_tag: imageTag } = metadata;
 
@@ -118,6 +126,7 @@ function updateServiceImages(metadata, namespace) {
   }
 }
 
+// Waits for each selected Kubernetes deployment rollout to complete.
 function checkRollouts(services, namespace) {
   for (const service of services) {
     run(
@@ -127,12 +136,14 @@ function checkRollouts(services, namespace) {
   }
 }
 
+// Shows current pods, services, and ingress resources in the namespace.
 function showResources(namespace) {
   run(`kubectl get pods -n ${namespace}`);
   run(`kubectl get svc -n ${namespace}`);
   run(`kubectl get ingress -n ${namespace}`);
 }
 
+// Runs the deploy action: reads inputs, validates metadata, deploys services, and shows resources.
 function main() {
   try {
     const eksClusterName = core.getInput("eks_cluster_name", { required: true });

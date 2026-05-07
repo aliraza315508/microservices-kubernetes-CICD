@@ -1,7 +1,8 @@
 const core = require("@actions/core");
 const fs = require("fs");
-const path = require("path") ;
+const path = require("path");
 
+// Parses and validates the build_matrix input as a JSON array.
 function parseBuildMatrix(rawBuildMatrix) {
   try {
     const services = JSON.parse(rawBuildMatrix);
@@ -16,25 +17,26 @@ function parseBuildMatrix(rawBuildMatrix) {
   }
 }
 
-
+// Creates deployment metadata used by Workflow C.
 function createDeploymentMetadata({
-commitSha,
-buildMatrix,
-awsRegion,
-awsAccountId
-}){
-const shortSha = commitSha.substring(0,7);
+  commitSha,
+  buildMatrix,
+  awsRegion,
+  awsAccountId
+}) {
+  const shortSha = commitSha.substring(0, 7);
 
-return{
+  return {
     commit_sha: commitSha,
     short_sha: shortSha,
     image_tag: `sha-${shortSha}`,
     aws_region: awsRegion,
     aws_account_id: awsAccountId,
     services: buildMatrix
-} ;
+  };
 }
 
+// Writes JSON data to a file and creates the folder if needed.
 function writeJsonFile(filePath, data) {
   const directory = path.dirname(filePath);
 
@@ -42,7 +44,7 @@ function writeJsonFile(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-
+// Runs the action: reads inputs, creates metadata, writes file, and sets output.
 function main() {
   try {
     const commitSha = core.getInput("commit_sha", { required: true });
