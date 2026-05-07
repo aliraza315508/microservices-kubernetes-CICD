@@ -1,39 +1,51 @@
 const core = require("@actions/core");
 const { execSync } = require("child_process");
 
+const BUILD_ALL_MARKER = "BUILD_ALL";
+
+const COMMON_K8S_PATH = "k8s/common/";
+
+const WORKFLOW_B_FILE = ".github/workflows/workflow-b-docker-build-push.yml";
+
+const BUILD_MATRIX_ACTION_DIR = ".github/actions/prepare-build-matrix";
+const IMAGE_METADATA_ACTION_DIR = ".github/actions/prepare-image-metadata";
+const DEPLOYMENT_METADATA_ACTION_DIR = ".github/actions/create-deployment-metadata";
+
+const ACTION_FILES = [
+  "action.yml",
+  "index.js",
+  "package.json",
+  "package-lock.json"
+];
+
+function createActionFiles(actionDirectory) {
+  return ACTION_FILES.map(fileName => `${actionDirectory}/${fileName}`);
+}
+
+const BUILD_ALL_FILES = [
+  WORKFLOW_B_FILE,
+
+  ...createActionFiles(BUILD_MATRIX_ACTION_DIR),
+  ...createActionFiles(IMAGE_METADATA_ACTION_DIR),
+  ...createActionFiles(DEPLOYMENT_METADATA_ACTION_DIR)
+];
+
+function createService(name) {
+  return {
+    service_name: name,
+    service_path: name,
+    ecr_repository: name,
+    k8s_deployment: name,
+    k8s_container: name,
+    k8s_kustomize_path: `k8s/${name}`
+  };
+}
+
 const ALL_SERVICES = [
-  {
-    service_name: "naming-server",
-    service_path: "naming-server",
-    ecr_repository: "naming-server",
-    k8s_deployment: "naming-server",
-    k8s_container: "naming-server",
-    k8s_kustomize_path: "k8s/naming-server"
-  },
-  {
-    service_name: "api-gateway",
-    service_path: "api-gateway",
-    ecr_repository: "api-gateway",
-    k8s_deployment: "api-gateway",
-    k8s_container: "api-gateway",
-    k8s_kustomize_path: "k8s/api-gateway"
-  },
-  {
-    service_name: "currency-exchange-service",
-    service_path: "currency-exchange-service",
-    ecr_repository: "currency-exchange-service",
-    k8s_deployment: "currency-exchange",
-    k8s_container: "currency-exchange",
-    k8s_kustomize_path: "k8s/currency-exchange"
-  },
-  {
-    service_name: "currency-conversion-service",
-    service_path: "currency-conversion-service",
-    ecr_repository: "currency-conversion-service",
-    k8s_deployment: "currency-conversion",
-    k8s_container: "currency-conversion",
-    k8s_kustomize_path: "k8s/currency-conversion"
-  }
+  createService("naming-server"),
+  createService("api-gateway"),
+  createService("currency-exchange-service"),
+  createService("currency-conversion-service")
 ];
 
 function getPreviousSha(currentSha) {
@@ -51,7 +63,7 @@ function getPreviousSha(currentSha) {
 function getChangedFiles(previousSha, currentSha) {
   if (!previousSha) {
     core.info("No previous SHA found. Building all services.");
-    return ["BUILD_ALL"];
+    return [BUILD_ALL_MARKER];
   }
 
   const output = execSync(`git diff --name-only ${previousSha} ${currentSha}`, {
@@ -65,30 +77,11 @@ function getChangedFiles(previousSha, currentSha) {
 }
 
 function shouldBuildAll(changedFiles) {
-  if (changedFiles.includes("BUILD_ALL")) {
+  if (changedFiles.includes(BUILD_ALL_MARKER)) {
     return true;
   }
 
-  const buildAllFiles = [
-    ".github/workflows/workflow-b-docker-build-push.yml",
-
-    ".github/actions/prepare-build-matrix/action.yml",
-    ".github/actions/prepare-build-matrix/index.js",
-    ".github/actions/prepare-build-matrix/package.json",
-    ".github/actions/prepare-build-matrix/package-lock.json",
-
-    ".github/actions/prepare-image-metadata/action.yml",
-    ".github/actions/prepare-image-metadata/index.js",
-    ".github/actions/prepare-image-metadata/package.json",
-    ".github/actions/prepare-image-metadata/package-lock.json",
-
-    ".github/actions/create-deployment-metadata/action.yml",
-    ".github/actions/create-deployment-metadata/index.js",
-    ".github/actions/create-deployment-metadata/package.json",
-    ".github/actions/create-deployment-metadata/package-lock.json"
-  ];
-
-  return changedFiles.some(file => buildAllFiles.includes(file));
+  return changedFiles.some(file => BUILD_ALL_FILES.includes(file));
 }
 
 function buildMatrix(changedFiles) {
@@ -97,7 +90,7 @@ function buildMatrix(changedFiles) {
     return ALL_SERVICES;
   }
 
-  if (changedFiles.some(file => file.startsWith("k8s/common/"))) {
+  if (changedFiles.some(file => file.startsWith(COMMON_K8S_PATH))) {
     core.info("Common Kubernetes files changed. Building all services.");
     return ALL_SERVICES;
   }
@@ -140,8 +133,12 @@ function main() {
 
     const matrix = buildMatrix(changedFiles);
 
-    core.info("Selected services:");
-    matrix.forEach(service => core.info(`- ${service.service_name}`));
+    if (matrix.length === 0) {
+      core.info("No service-related changes detected. No Docker images will be built.");
+    } else {
+      core.info("Selected services:");
+      matrix.forEach(service => core.info(`- ${service.service_name}`));
+    }
 
     core.setOutput("build_matrix", JSON.stringify(matrix));
     core.setOutput("changed_count", matrix.length.toString());

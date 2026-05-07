@@ -2,26 +2,26 @@ apiVersion: apps/v1
 kind: Deployment
 
 metadata:
-  name: currency-exchange
+  name: currency-exchange-service
   namespace: currency-system
   labels:
-    app: currency-exchange
+    app: currency-exchange-service
 
 spec:
   replicas: 1
 
   selector:
     matchLabels:
-      app: currency-exchange
+      app: currency-exchange-service
 
   template:
     metadata:
       labels:
-        app: currency-exchange
+        app: currency-exchange-service
 
     spec:
       containers:
-        - name: currency-exchange
+        - name: currency-exchange-service
           image: 295504962032.dkr.ecr.us-east-1.amazonaws.com/currency-exchange-service:v1
           imagePullPolicy: Always
 
