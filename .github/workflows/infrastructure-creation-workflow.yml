@@ -2,6 +2,28 @@ name: Terraform Infrastructure
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action to run"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
+
+      stack:
+        description: "Terraform stack to run"
+        required: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - all
+          - vpc
+          - database
+          - eks
+          - workflow-b
 
   push:
     branches:
@@ -11,6 +33,7 @@ on:
       - "terraform/database/**"
       - "terraform/eks/**"
       - "terraform/workflow-b/**"
+      - ".github/actions/run-terraform-infrastructure/**"
       - ".github/workflows/infrastructure-creation-workflow.yml"
 
 permissions:
@@ -25,18 +48,30 @@ env:
   TERRAFORM_VERSION: 1.9.8
 
   TF_VAR_terraform_state_bucket_name: ${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}
+  TF_VAR_terraform_lock_table_name: ${{ secrets.TERRAFORM_LOCK_TABLE_NAME }}
+
   TF_VAR_db_username: ${{ secrets.DB_USERNAME }}
   TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
 
-
 jobs:
   terraform-infrastructure:
-    name: Apply Terraform Infrastructure
+    name: Run Terraform Infrastructure
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Install run-terraform-infrastructure dependencies
+        working-directory: ./.github/actions/run-terraform-infrastructure
+        run: npm ci
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -47,132 +82,20 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
 
-      # ------------------------------------------------------------
-      # 1. VPC
-      # Creates the shared network foundation:
-      # VPC, public subnets, private subnets, route tables, NAT, app SG.
-      # ------------------------------------------------------------
+      - name: Run Terraform infrastructure action
+        id: terraform
+        uses: ./.github/actions/run-terraform-infrastructure
+        with:
+          action: ${{ github.event_name == 'push' && 'plan' || inputs.action }}
+          stack: ${{ github.event_name == 'push' && 'auto' || inputs.stack }}
+          terraform_state_bucket_name: ${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}
+          terraform_lock_table_name: ${{ secrets.TERRAFORM_LOCK_TABLE_NAME }}
 
-      - name: Terraform fmt - VPC
-        working-directory: terraform/vpc
-        run: terraform fmt -check -recursive
-
-      - name: Terraform init - VPC
-        working-directory: terraform/vpc
+      - name: Show Terraform infrastructure summary
         run: |
-          terraform init \
-            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}"
-
-      - name: Terraform validate - VPC
-        working-directory: terraform/vpc
-        run: terraform validate
-
-      - name: Terraform plan - VPC
-        working-directory: terraform/vpc
-        run: |
-          terraform plan \
-            -input=false \
-            -out=tfplan
-
-      - name: Terraform apply - VPC
-        working-directory: terraform/vpc
-        run: terraform apply -input=false -auto-approve tfplan
-
-      # ------------------------------------------------------------
-      # 2. Database
-      # Creates RDS PostgreSQL inside the VPC private subnets.
-      # In Option 2, database depends only on VPC, not EKS.
-      # ------------------------------------------------------------
-
-      - name: Terraform fmt - Database
-        working-directory: terraform/database
-        run: terraform fmt -check -recursive
-
-      - name: Terraform init - Database
-        working-directory: terraform/database
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}"
-
-      - name: Terraform validate - Database
-        working-directory: terraform/database
-        run: terraform validate
-
-      - name: Terraform plan - Database
-        working-directory: terraform/database
-        run: |
-          terraform plan \
-            -input=false \
-            -out=tfplan
-
-      - name: Terraform apply - Database
-        working-directory: terraform/database
-        run: terraform apply -input=false -auto-approve tfplan
-
-      # ------------------------------------------------------------
-      # 3. EKS
-      # Creates EKS cluster, node group, OIDC provider,
-      # and AWS Load Balancer Controller resources.
-      # EKS reads VPC outputs.
-      # ------------------------------------------------------------
-
-      - name: Terraform fmt - EKS
-        working-directory: terraform/eks
-        run: terraform fmt -check -recursive
-
-      - name: Terraform init - EKS
-        working-directory: terraform/eks
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}"
-
-      - name: Terraform validate - EKS
-        working-directory: terraform/eks
-        run: terraform validate
-
-      - name: Terraform plan - EKS
-        working-directory: terraform/eks
-        run: |
-          terraform plan \
-            -input=false \
-            -out=tfplan
-
-      - name: Terraform apply - EKS
-        working-directory: terraform/eks
-        run: terraform apply -input=false -auto-approve tfplan
-
-      # ------------------------------------------------------------
-      # 4. workflow-b / CI-CD infrastructure
-      # Creates ECR repositories, GitHub Actions IAM role,
-      # GitHub OIDC provider, and EKS access entry/policy.
-      # This must run after EKS because EKS access entries require
-      # the cluster to already exist.
-      # ------------------------------------------------------------
-
-      - name: Terraform fmt - Workflow B
-        working-directory: terraform/workflow-b
-        run: terraform fmt -check -recursive
-
-      - name: Terraform init - Workflow B
-        working-directory: terraform/workflow-b
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}"
-
-      - name: Terraform validate - Workflow B
-        working-directory: terraform/workflow-b
-        run: terraform validate
-
-      - name: Terraform plan - Workflow B
-        working-directory: terraform/workflow-b
-        run: |
-          terraform plan \
-            -input=false \
-            -out=tfplan
-
-      - name: Terraform apply - Workflow B
-        working-directory: terraform/workflow-b
-        run: terraform apply -input=false -auto-approve tfplan
+          echo "Final action: ${{ steps.terraform.outputs.final_action }}"
+          echo "Selected stacks: ${{ steps.terraform.outputs.selected_stacks }}"
+          echo "Should run: ${{ steps.terraform.outputs.should_run }}"
