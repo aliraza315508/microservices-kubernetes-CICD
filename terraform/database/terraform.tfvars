@@ -8,6 +8,8 @@ db_instance_class = "db.t4g.micro"
 
 allocated_storage = 20
 
+db_port = 5432
+
 max_allocated_storage = 100
 
 deletion_protection = false

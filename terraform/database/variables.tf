@@ -10,6 +10,12 @@ variable "project_name" {
   default     = "currency-system"
 }
 
+variable "db_port" {
+  description = "PostgreSQL database port"
+  type        = number
+  default     = 5432
+}
+
 variable "db_name" {
   description = "PostgreSQL database name"
   type        = string

@@ -214,11 +214,11 @@ function main() {
       core.getInput("stack", { required: false }) || "auto";
 
     const bucket = core.getInput("terraform_state_bucket_name", {
-      required: true
+      required: false
     });
 
     const lockTable = core.getInput("terraform_lock_table_name", {
-      required: true
+      required: false
     });
 
     const action = eventName === "push" ? "plan" : inputAction;
