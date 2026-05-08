@@ -52,7 +52,7 @@ function getOutput(command, cwd = process.cwd()) {
 
 // Validates the final Terraform action and stack input.
 // Collects all validation errors before failing.
-function validateInputs(action, stack) {
+function validateInputs(action, stackInput , bucket, lockTable) {
   const errors = [];
   const validStacks = ["auto", "all", ...CONFIG.stackOrder];
 
@@ -62,10 +62,18 @@ function validateInputs(action, stack) {
     );
   }
 
-  if (!validStacks.includes(stack)) {
+  if (!validStacks.includes(stackInput)) {
     errors.push(
-      `Invalid stack '${stack}'. Valid stacks: ${validStacks.join(", ")}`
+      `Invalid stack '${stackInput}'. Valid stacks: ${validStacks.join(", ")}`
     );
+  }
+
+  if (!bucket) {
+    errors.push("Missing required input: terraform_state_bucket_name");
+  }
+
+  if (!lockTable) {
+    errors.push("Missing required input: terraform_lock_table_name");
   }
 
   if (errors.length > 0) {
@@ -206,17 +214,17 @@ function main() {
       core.getInput("stack", { required: false }) || "auto";
 
     const bucket = core.getInput("terraform_state_bucket_name", {
-      required: false
+      required: true
     });
 
     const lockTable = core.getInput("terraform_lock_table_name", {
-      required: false
+      required: true
     });
 
     const action = eventName === "push" ? "plan" : inputAction;
     const stackInput = eventName === "push" ? "auto" : inputStack;
 
-    validateInputs(action, stackInput);
+    validateInputs(action, stackInput , bucket , lockTable);
 
     core.info(`GitHub event: ${eventName}`);
     core.info(`Input action: ${inputAction}`);
