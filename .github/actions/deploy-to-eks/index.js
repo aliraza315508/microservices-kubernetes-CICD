@@ -94,7 +94,7 @@ function updateKubeconfig(clusterName, region) {
   run(`aws eks update-kubeconfig --region "${region}" --name "${clusterName}"`);
 }
 
-// Applies shared Kubernetes resources such as namespace, configmap, and secrets.
+// Applies shared Kubernetes resources such as namespace and base configmap.
 function applyCommonResources() {
   run("kubectl apply -k k8s/common");
 }
@@ -115,9 +115,111 @@ function applyIngressResources() {
   run("kubectl apply -k k8s/ingress");
 }
 
+// Reads DB host, port, and DB name from AWS RDS.
+function getDatabaseConnectionInfo(dbInstanceIdentifier, region) {
+  const rawDatabaseInfo = runAndGetOutput(
+    `aws rds describe-db-instances ` +
+      `--db-instance-identifier "${dbInstanceIdentifier}" ` +
+      `--region "${region}" ` +
+      `--query "DBInstances[0].{host:Endpoint.Address,port:Endpoint.Port,dbName:DBName}" ` +
+      `--output json`
+  );
+
+  let databaseInfo;
+
+  try {
+    databaseInfo = JSON.parse(rawDatabaseInfo);
+  } catch (error) {
+    throw new Error(`Invalid RDS database info JSON: ${error.message}`);
+  }
+
+  const missingFields = [];
+
+  if (!databaseInfo.host) missingFields.push("DB_HOST");
+  if (!databaseInfo.port) missingFields.push("DB_PORT");
+  if (!databaseInfo.dbName) missingFields.push("DB_NAME");
+
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Missing required RDS values from AWS: ${missingFields.join(", ")}`
+    );
+  }
+
+  return {
+    dbHost: databaseInfo.host,
+    dbPort: databaseInfo.port.toString(),
+    dbName: databaseInfo.dbName
+  };
+}
+
+// Creates or updates the common-config ConfigMap with non-sensitive app config.
+function createOrUpdateCommonConfig(namespace, databaseInfo) {
+  const manifest = {
+    apiVersion: "v1",
+    kind: "ConfigMap",
+    metadata: {
+      name: "common-config",
+      namespace
+    },
+    data: {
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:
+        "http://naming-server:8761/eureka",
+      CONFIG_SERVER_URL: "",
+      DB_HOST: databaseInfo.dbHost,
+      DB_PORT: databaseInfo.dbPort,
+      DB_NAME: databaseInfo.dbName
+    }
+  };
+
+  fs.mkdirSync(".runtime-k8s", { recursive: true });
+
+  fs.writeFileSync(
+    ".runtime-k8s/common-config.json",
+    JSON.stringify(manifest, null, 2)
+  );
+
+  run("kubectl apply -f .runtime-k8s/common-config.json");
+}
+
+// Creates or updates the app-secrets Secret with sensitive DB credentials.
+function createOrUpdateAppSecrets(namespace, dbUsername, dbPassword) {
+  const missingSecrets = [];
+
+  if (!dbUsername) missingSecrets.push("db_username");
+  if (!dbPassword) missingSecrets.push("db_password");
+
+  if (missingSecrets.length > 0) {
+    throw new Error(`Missing required secret inputs: ${missingSecrets.join(", ")}`);
+  }
+
+  const manifest = {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: {
+      name: "app-secrets",
+      namespace
+    },
+    type: "Opaque",
+    stringData: {
+      DB_USERNAME: dbUsername,
+      DB_PASSWORD: dbPassword
+    }
+  };
+
+  fs.mkdirSync(".runtime-k8s", { recursive: true });
+
+  fs.writeFileSync(
+    ".runtime-k8s/app-secrets.json",
+    JSON.stringify(manifest, null, 2)
+  );
+
+  run("kubectl apply -f .runtime-k8s/app-secrets.json");
+}
+
 // Updates each selected Kubernetes deployment with the new ECR image tag.
 function updateServiceImages(metadata, namespace) {
-  const { aws_account_id: accountId, aws_region: region, image_tag: imageTag } = metadata;
+  const { aws_account_id: accountId, aws_region: region, image_tag: imageTag } =
+    metadata;
 
   for (const service of metadata.services) {
     const imageUri =
@@ -149,73 +251,22 @@ function showResources(namespace) {
   run(`kubectl get ingress -n ${namespace}`);
 }
 
-// Creates or updates the common-config ConfigMap with non-sensitive app config.
-function createOrUpdateCommonConfig(namespace, databaseInfo) {
-  const manifest = {
-    apiVersion: "v1",
-    kind: "ConfigMap",
-    metadata: {
-      name: "common-config",
-      namespace
-    },
-    data: {
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:
-        "http://naming-server:8761/eureka",
-      CONFIG_SERVER_URL: "",
-      DB_HOST: databaseInfo.dbHost,
-      DB_PORT: databaseInfo.dbPort,
-      DB_NAME: databaseInfo.dbName
-    }
-  };
-
-  fs.mkdirSync(".runtime-k8s", { recursive: true });
-  fs.writeFileSync(
-    ".runtime-k8s/common-config.json",
-    JSON.stringify(manifest, null, 2)
-  );
-
-  run("kubectl apply -f .runtime-k8s/common-config.json");
-}
-
-// Creates or updates the app-secrets Secret with sensitive DB credentials.
-function createOrUpdateAppSecrets(namespace, dbUsername, dbPassword) {
-  const manifest = {
-    apiVersion: "v1",
-    kind: "Secret",
-    metadata: {
-      name: "app-secrets",
-      namespace
-    },
-    type: "Opaque",
-    stringData: {
-      DB_USERNAME: dbUsername,
-      DB_PASSWORD: dbPassword
-    }
-  };
-
-  fs.mkdirSync(".runtime-k8s", { recursive: true });
-  fs.writeFileSync(
-    ".runtime-k8s/app-secrets.json",
-    JSON.stringify(manifest, null, 2)
-  );
-
-  run("kubectl apply -f .runtime-k8s/app-secrets.json");
-}
-
 // Runs the deploy action: reads inputs, validates metadata, deploys services, and shows resources.
 function main() {
   try {
     const eksClusterName = core.getInput("eks_cluster_name", { required: true });
     const k8sNamespace = core.getInput("k8s_namespace", { required: true });
+
     const deploymentMetadataFile = core.getInput("deployment_metadata_file", {
       required: true
     });
+
     const dbInstanceIdentifier = core.getInput("db_instance_identifier", {
       required: true
     });
+
     const dbUsername = core.getInput("db_username", { required: true });
     const dbPassword = core.getInput("db_password", { required: true });
-
 
     const metadata = readDeploymentMetadata(deploymentMetadataFile);
     validateMetadata(metadata);
@@ -238,13 +289,8 @@ function main() {
 
     updateKubeconfig(eksClusterName, metadata.aws_region);
 
-    if (metadata.services.length === 0) {
-      core.info("No services found in deployment metadata. Nothing to deploy.");
-      showResources(k8sNamespace);
-      return;
-    }
-
     applyCommonResources();
+
     const databaseInfo = getDatabaseConnectionInfo(
       dbInstanceIdentifier,
       metadata.aws_region
@@ -252,6 +298,13 @@ function main() {
 
     createOrUpdateCommonConfig(k8sNamespace, databaseInfo);
     createOrUpdateAppSecrets(k8sNamespace, dbUsername, dbPassword);
+
+    if (metadata.services.length === 0) {
+      core.info("No services found in deployment metadata. Config and secrets were updated.");
+      showResources(k8sNamespace);
+      return;
+    }
+
     applyServiceResources(metadata.services);
     applyIngressResources();
     updateServiceImages(metadata, k8sNamespace);
