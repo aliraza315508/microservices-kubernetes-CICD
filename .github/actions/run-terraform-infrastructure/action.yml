@@ -8,7 +8,7 @@ inputs:
     default: "plan"
 
   stack:
-    description: "Terraform stack to run: auto, all, vpc, database, eks, workflow-b"
+    description: "Terraform stack to run: auto, all, vpc, database, eks, .eks-add-ons , workflow-b"
     required: true
     default: "auto"
 

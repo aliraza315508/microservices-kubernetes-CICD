@@ -23,6 +23,7 @@ on:
           - vpc
           - database
           - eks
+          - eks-add-ons
           - workflow-b
 
   push:
@@ -32,6 +33,7 @@ on:
       - "terraform/vpc/**"
       - "terraform/database/**"
       - "terraform/eks/**"
+      - "terraform/eks-add-ons/**"
       - "terraform/workflow-b/**"
       - ".github/actions/run-terraform-infrastructure/**"
       - ".github/workflows/infrastructure-creation-workflow.yml"

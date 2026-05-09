@@ -3,7 +3,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const STACK_ORDER = ["vpc", "database", "eks", "workflow-b"];
+const STACK_ORDER = ["vpc", "database", "eks", "eks-add-ons", "workflow-b"];
 
 const CONFIG = {
   validActions: ["plan", "apply"],
@@ -14,13 +14,15 @@ const CONFIG = {
     "vpc": "terraform/vpc",
     "database": "terraform/database",
     "eks": "terraform/eks",
+    "eks-add-ons": "terraform/eks-add-ons",
     "workflow-b": "terraform/workflow-b"
   },
 
   changeRules: [
     ["terraform/vpc/", STACK_ORDER],
     ["terraform/database/", ["database"]],
-    ["terraform/eks/", ["eks", "workflow-b"]],
+    ["terraform/eks/", ["eks", "eks-add-ons", "workflow-b"]],
+    ["terraform/eks-add-ons/", ["eks-add-ons"]],
     ["terraform/workflow-b/", ["workflow-b"]],
     [".github/actions/run-terraform-infrastructure/", STACK_ORDER],
     [".github/workflows/infrastructure-creation-workflow.yml", STACK_ORDER]
