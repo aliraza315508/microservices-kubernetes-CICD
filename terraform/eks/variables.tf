@@ -19,7 +19,7 @@ variable "kubernetes_version" {
 variable "allowed_cidr" {
   description = "CIDR allowed to access the EKS public API endpoint"
   type        = string
-  default     = "0.0.0.0/0"
+  default     = "76.124.66.34/32"
 }
 
 variable "node_instance_type" {
@@ -45,6 +45,7 @@ variable "max_nodes" {
   type        = number
   default     = 2
 }
+
 variable "terraform_state_bucket_name" {
   description = "S3 bucket name used for Terraform remote state"
   type        = string

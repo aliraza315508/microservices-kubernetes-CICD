@@ -11,7 +11,6 @@ data "terraform_remote_state" "vpc" {
   }
 }
 
-
 // IAM role used by the EKS control plane.
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.cluster_name}-cluster-role"
@@ -103,6 +102,36 @@ resource "aws_iam_role_policy_attachment" "node_ecr_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+// Launch template for EKS worker nodes.
+// This attaches both the EKS cluster security group and your app security group.
+resource "aws_launch_template" "eks_nodes" {
+  name_prefix = "${var.cluster_name}-nodes-"
+
+  vpc_security_group_ids = [
+    aws_eks_cluster.main.vpc_config[0].cluster_security_group_id,
+    data.terraform_remote_state.vpc.outputs.app_security_group_id
+  ]
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = "${var.cluster_name}-worker-node"
+    }
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+
+    tags = {
+      Name = "${var.cluster_name}-worker-volume"
+    }
+  }
+
+  tags = {
+    Name = "${var.cluster_name}-node-launch-template"
+  }
+}
 
 // Creates the managed worker node group in private subnets only.
 resource "aws_eks_node_group" "main" {
@@ -157,150 +186,4 @@ resource "aws_iam_openid_connect_provider" "eks" {
   thumbprint_list = [
     data.tls_certificate.eks_oidc.certificates[0].sha1_fingerprint
   ]
-}
-
-// IAM policy for AWS Load Balancer Controller.
-resource "aws_iam_policy" "aws_load_balancer_controller" {
-  name        = "${var.cluster_name}-aws-load-balancer-controller-policy"
-  description = "IAM policy for AWS Load Balancer Controller"
-  policy      = file("${path.module}/aws-load-balancer-controller-policy.json")
-}
-
-// Trust policy allowing the ALB controller service account to assume its IAM role.
-data "aws_iam_policy_document" "aws_load_balancer_controller_assume_role" {
-  statement {
-    effect = "Allow"
-
-    actions = [
-      "sts:AssumeRoleWithWebIdentity"
-    ]
-
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.eks.arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(local.eks_oidc_issuer, "https://", "")}:sub"
-
-      values = [
-        "system:serviceaccount:kube-system:aws-load-balancer-controller"
-      ]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(local.eks_oidc_issuer, "https://", "")}:aud"
-
-      values = [
-        "sts.amazonaws.com"
-      ]
-    }
-  }
-}
-
-// IAM role used by the AWS Load Balancer Controller pod through IRSA.
-resource "aws_iam_role" "aws_load_balancer_controller" {
-  name               = "${var.cluster_name}-aws-load-balancer-controller-role"
-  assume_role_policy = data.aws_iam_policy_document.aws_load_balancer_controller_assume_role.json
-}
-
-// Attaches the ALB controller IAM policy to the IAM role.
-resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller" {
-  role       = aws_iam_role.aws_load_balancer_controller.name
-  policy_arn = aws_iam_policy.aws_load_balancer_controller.arn
-}
-
-// Creates the Kubernetes service account used by the AWS Load Balancer Controller.
-resource "kubernetes_service_account" "aws_load_balancer_controller" {
-  metadata {
-    name      = "aws-load-balancer-controller"
-    namespace = "kube-system"
-
-    annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.aws_load_balancer_controller.arn
-    }
-  }
-
-  depends_on = [
-    aws_eks_node_group.main
-  ]
-}
-
-// Installs AWS Load Balancer Controller through Helm.
-resource "helm_release" "aws_load_balancer_controller" {
-  name       = "aws-load-balancer-controller"
-  namespace  = "kube-system"
-  repository = "https://aws.github.io/eks-charts"
-  chart      = "aws-load-balancer-controller"
-  version    = "1.14.0"
-
-  wait    = true
-  timeout = 600
-
-  set {
-    name  = "clusterName"
-    value = aws_eks_cluster.main.name
-  }
-
-  set {
-    name  = "region"
-    value = var.aws_region
-  }
-
-  set {
-    name  = "vpcId"
-    value = data.terraform_remote_state.vpc.outputs.vpc_id
-  }
-
-  set {
-    name  = "serviceAccount.create"
-    value = "false"
-  }
-
-  set {
-    name  = "serviceAccount.name"
-    value = kubernetes_service_account.aws_load_balancer_controller.metadata[0].name
-  }
-
-  depends_on = [
-    kubernetes_service_account.aws_load_balancer_controller,
-    aws_iam_role_policy_attachment.aws_load_balancer_controller
-  ]
-}
-
-// Launch template for EKS worker nodes.
-// This lets us attach the shared app security group from terraform/vpc to the worker nodes.
-//
-// Important:
-// When custom security groups are provided through a launch template,
-// include the EKS cluster security group as well as the app security group.
-resource "aws_launch_template" "eks_nodes" {
-  name_prefix = "${var.cluster_name}-nodes-"
-
-  vpc_security_group_ids = [
-    aws_eks_cluster.main.vpc_config[0].cluster_security_group_id,
-    data.terraform_remote_state.vpc.outputs.app_security_group_id
-  ]
-
-  tag_specifications {
-    resource_type = "instance"
-
-    tags = {
-      Name = "${var.cluster_name}-worker-node"
-    }
-  }
-
-  tag_specifications {
-    resource_type = "volume"
-
-    tags = {
-      Name = "${var.cluster_name}-worker-volume"
-    }
-  }
-
-  tags = {
-    Name = "${var.cluster_name}-node-launch-template"
-  }
 }
