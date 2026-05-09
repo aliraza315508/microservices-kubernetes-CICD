@@ -14,6 +14,19 @@ inputs:
     description: Path to the deployment metadata JSON file downloaded from Workflow B
     required: true
 
+  db_instance_identifier:
+    description: RDS DB instance identifier used to read DB host, port, and DB name
+    required: true
+
+  db_username:
+    description: Database username from GitHub Secrets
+    required: true
+
+  db_password:
+    description: Database password from GitHub Secrets
+    required: true
+
+
 outputs:
   full_sha:
     description: Full commit SHA used for deployment
@@ -26,6 +39,8 @@ outputs:
 
   deployed_services:
     description: Comma-separated list of services deployed
+
+
 
 runs:
   using: node20

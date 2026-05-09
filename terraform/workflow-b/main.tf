@@ -114,10 +114,10 @@ resource "aws_iam_policy" "github_actions_ecr_policy" {
 
 // Creates IAM policy for Workflow C
 // This policy allows GitHub Actions to describe the EKS cluster
-// so aws eks update-kubeconfig can work
+// and read RDS details before deploying to Kubernetes
 resource "aws_iam_policy" "github_actions_eks_policy" {
   name        = "github-actions-workflow-c-eks-policy"
-  description = "IAM policy for GitHub Actions to access EKS for Workflow C"
+  description = "IAM policy for GitHub Actions to access EKS and read RDS details for Workflow C"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -128,6 +128,13 @@ resource "aws_iam_policy" "github_actions_eks_policy" {
           "eks:DescribeCluster"
         ]
         Resource = data.aws_eks_cluster.target.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "rds:DescribeDBInstances"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -149,8 +156,8 @@ resource "aws_iam_role_policy_attachment" "attach_ecr_policy" {
 }
 
 
-// Attaches the EKS access policy to the GitHub Actions role
-// Needed for Workflow C to connect to the EKS cluster
+// Attaches the EKS/RDS access policy to the GitHub Actions role
+// Needed for Workflow C to connect to EKS and read RDS details
 resource "aws_iam_role_policy_attachment" "attach_eks_policy" {
   role       = aws_iam_role.github_actions_role.name
   policy_arn = aws_iam_policy.github_actions_eks_policy.arn

@@ -18,6 +18,11 @@ output "postgres_db_name" {
   value       = aws_db_instance.postgres.db_name
 }
 
+output "db_instance_identifier" {
+  description = "RDS DB instance identifier used by Workflow C to fetch DB details"
+  value       = aws_db_instance.postgres.identifier
+}
+
 output "postgres_security_group_id" {
   description = "Security group attached to RDS PostgreSQL"
   value       = aws_security_group.postgres.id

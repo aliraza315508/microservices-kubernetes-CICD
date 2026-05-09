@@ -25,6 +25,8 @@ env:
   EKS_CLUSTER_NAME: currency-system-cluster
   K8S_NAMESPACE: currency-system
   DEPLOYMENT_METADATA_FILE: deployment-metadata/deployment-metadata.json
+  DB_INSTANCE_IDENTIFIER: ${{ vars.DB_INSTANCE_IDENTIFIER }}
+
 
 concurrency:
   group: workflow-c-deploy-dev-main
@@ -82,6 +84,9 @@ jobs:
           eks_cluster_name: ${{ env.EKS_CLUSTER_NAME }}
           k8s_namespace: ${{ env.K8S_NAMESPACE }}
           deployment_metadata_file: ${{ env.DEPLOYMENT_METADATA_FILE }}
+          db_instance_identifier: ${{ env.DB_INSTANCE_IDENTIFIER }}
+          db_username: ${{ secrets.DB_USERNAME }}
+          db_password: ${{ secrets.DB_PASSWORD }}
 
       - name: Show deployment outputs
         run: |

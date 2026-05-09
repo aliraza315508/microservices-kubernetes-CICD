@@ -8,6 +8,12 @@ function run(command) {
   execSync(command, { stdio: "inherit" });
 }
 
+// Runs a shell command and returns the output as a string.
+function runAndGetOutput(command) {
+  core.info(`Running: ${command}`);
+  return execSync(command, { encoding: "utf8" }).trim();
+}
+
 // Reads and parses the deployment metadata JSON file.
 function readDeploymentMetadata(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -143,6 +149,59 @@ function showResources(namespace) {
   run(`kubectl get ingress -n ${namespace}`);
 }
 
+// Creates or updates the common-config ConfigMap with non-sensitive app config.
+function createOrUpdateCommonConfig(namespace, databaseInfo) {
+  const manifest = {
+    apiVersion: "v1",
+    kind: "ConfigMap",
+    metadata: {
+      name: "common-config",
+      namespace
+    },
+    data: {
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:
+        "http://naming-server:8761/eureka",
+      CONFIG_SERVER_URL: "",
+      DB_HOST: databaseInfo.dbHost,
+      DB_PORT: databaseInfo.dbPort,
+      DB_NAME: databaseInfo.dbName
+    }
+  };
+
+  fs.mkdirSync(".runtime-k8s", { recursive: true });
+  fs.writeFileSync(
+    ".runtime-k8s/common-config.json",
+    JSON.stringify(manifest, null, 2)
+  );
+
+  run("kubectl apply -f .runtime-k8s/common-config.json");
+}
+
+// Creates or updates the app-secrets Secret with sensitive DB credentials.
+function createOrUpdateAppSecrets(namespace, dbUsername, dbPassword) {
+  const manifest = {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: {
+      name: "app-secrets",
+      namespace
+    },
+    type: "Opaque",
+    stringData: {
+      DB_USERNAME: dbUsername,
+      DB_PASSWORD: dbPassword
+    }
+  };
+
+  fs.mkdirSync(".runtime-k8s", { recursive: true });
+  fs.writeFileSync(
+    ".runtime-k8s/app-secrets.json",
+    JSON.stringify(manifest, null, 2)
+  );
+
+  run("kubectl apply -f .runtime-k8s/app-secrets.json");
+}
+
 // Runs the deploy action: reads inputs, validates metadata, deploys services, and shows resources.
 function main() {
   try {
@@ -151,6 +210,12 @@ function main() {
     const deploymentMetadataFile = core.getInput("deployment_metadata_file", {
       required: true
     });
+    const dbInstanceIdentifier = core.getInput("db_instance_identifier", {
+      required: true
+    });
+    const dbUsername = core.getInput("db_username", { required: true });
+    const dbPassword = core.getInput("db_password", { required: true });
+
 
     const metadata = readDeploymentMetadata(deploymentMetadataFile);
     validateMetadata(metadata);
@@ -180,6 +245,13 @@ function main() {
     }
 
     applyCommonResources();
+    const databaseInfo = getDatabaseConnectionInfo(
+      dbInstanceIdentifier,
+      metadata.aws_region
+    );
+
+    createOrUpdateCommonConfig(k8sNamespace, databaseInfo);
+    createOrUpdateAppSecrets(k8sNamespace, dbUsername, dbPassword);
     applyServiceResources(metadata.services);
     applyIngressResources();
     updateServiceImages(metadata, k8sNamespace);

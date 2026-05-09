@@ -46,20 +46,20 @@ spec:
 
             - name: DB_HOST
               valueFrom:
-                secretKeyRef:
-                  name: app-secrets
+                configMapKeyRef:
+                  name: common-config
                   key: DB_HOST
 
             - name: DB_PORT
               valueFrom:
-                secretKeyRef:
-                  name: app-secrets
+                configMapKeyRef:
+                  name: common-config
                   key: DB_PORT
 
             - name: DB_NAME
               valueFrom:
-                secretKeyRef:
-                  name: app-secrets
+                configMapKeyRef:
+                  name: common-config
                   key: DB_NAME
 
             - name: DB_USERNAME
