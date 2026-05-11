@@ -2,13 +2,15 @@ name: Terraform State Management
 
 on:
   workflow_dispatch:
-
-  push:
-    branches:
-      - main
-    paths:
-      - "terraform/state-management/**"
-      - ".github/workflows/maintenance-terraform-state-management.yml"
+    inputs:
+      action:
+        description: "Terraform action to run for state-management"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
 
 permissions:
   contents: read
@@ -19,48 +21,52 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
-  TF_WORKING_DIR: terraform/state-management
   TERRAFORM_VERSION: 1.9.8
+
+  TF_VAR_aws_region: us-east-1
+  TF_VAR_terraform_state_bucket_name: ${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}
+  TF_VAR_terraform_lock_table_name: ${{ secrets.TERRAFORM_LOCK_TABLE_NAME }}
 
 jobs:
   terraform-state-management:
-    name: Apply Terraform State Management
+    name: Run Terraform State Management
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: ${{ env.TF_WORKING_DIR }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Install local action dependencies
+        working-directory: .github/actions/run-terraform-state-management
+        run: npm ci
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
-      - name: Configure AWS credentials for bootstrap
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.TERRAFORM_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY }}
 
-      - name: Terraform format check
-        run: terraform fmt -check -recursive
+      - name: Run Terraform state-management action
+        id: state-management
+        uses: ./.github/actions/run-terraform-state-management
+        with:
+          action: ${{ github.event.inputs.action }}
+          terraform_state_bucket_name: ${{ secrets.TERRAFORM_STATE_BUCKET_NAME }}
+          terraform_lock_table_name: ${{ secrets.TERRAFORM_LOCK_TABLE_NAME }}
+          terraform_working_directory: terraform/state-management
 
-      - name: Terraform init
-        run: terraform init
-
-      - name: Terraform validate
-        run: terraform validate
-
-      - name: Terraform plan
+      - name: Show state-management summary
         run: |
-          terraform plan \
-            -input=false \
-            -out=tfplan
-
-      - name: Terraform apply
-        run: terraform apply -input=false -auto-approve tfplan
+          echo "Final action: ${{ steps.state-management.outputs.final_action }}"
+          echo "Working directory: ${{ steps.state-management.outputs.working_directory }}"

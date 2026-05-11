@@ -1,0 +1,31 @@
+name: "Run Terraform State Management"
+description: "Runs Terraform plan/apply for the state-management stack."
+
+inputs:
+  action:
+    description: "Terraform action to run."
+    required: true
+
+  terraform_state_bucket_name:
+    description: "S3 bucket name used for Terraform remote state."
+    required: true
+
+  terraform_lock_table_name:
+    description: "DynamoDB table name used for Terraform state locking."
+    required: true
+
+  terraform_working_directory:
+    description: "Terraform working directory."
+    required: false
+    default: "terraform/state-management"
+
+outputs:
+  final_action:
+    description: "Final Terraform action that was executed."
+
+  working_directory:
+    description: "Terraform working directory used by the action."
+
+runs:
+  using: "node20"
+  main: "index.js"

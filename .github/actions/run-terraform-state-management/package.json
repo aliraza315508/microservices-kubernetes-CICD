@@ -1,0 +1,11 @@
+{
+  "name": "run-terraform-state-management",
+  "version": "1.0.0",
+  "description": "Local GitHub Action for running Terraform state-management stack.",
+  "main": "index.js",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.11.1"
+  }
+}
