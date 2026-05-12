@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: 295504962032.dkr.ecr.us-east-1.amazonaws.com/api-gateway:v1
+          image: api-gateway:placeholder
           imagePullPolicy: Always
 
 

@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: currency-exchange-service
-          image: 295504962032.dkr.ecr.us-east-1.amazonaws.com/currency-exchange-service:v1
+          image: currency-exchange-service:placeholder
           imagePullPolicy: Always
 
           ports:

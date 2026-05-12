@@ -22,12 +22,13 @@ concurrency:
 
 jobs:
   detect-changes:
-    name: Detect changed services
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Detect Changed Services
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
 
     outputs:
       build_matrix: ${{ steps.matrix.outputs.build_matrix }}
+      has_changes: ${{ steps.matrix.outputs.has_changes }}
       changed_count: ${{ steps.matrix.outputs.changed_count }}
 
     steps:
@@ -44,7 +45,7 @@ jobs:
 
       - name: Install prepare-build-matrix dependencies
         working-directory: ./.github/actions/prepare-build-matrix
-        run: npm install
+        run: npm ci
 
       - name: Prepare build matrix
         id: matrix
@@ -55,13 +56,14 @@ jobs:
       - name: Show selected services
         run: |
           echo "Changed count: ${{ steps.matrix.outputs.changed_count }}"
+          echo "Has changes: ${{ steps.matrix.outputs.has_changes }}"
           echo 'Build matrix: ${{ steps.matrix.outputs.build_matrix }}'
 
   build-and-push:
     name: Build and Push - ${{ matrix.service_name }}
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.changed_count != '0' }}
+    if: ${{ needs.detect-changes.outputs.has_changes == 'true' }}
 
     strategy:
       fail-fast: false
@@ -81,7 +83,7 @@ jobs:
 
       - name: Install prepare-image-metadata dependencies
         working-directory: ./.github/actions/prepare-image-metadata
-        run: npm install
+        run: npm ci
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -131,7 +133,7 @@ jobs:
 
       - name: Install create-deployment-metadata dependencies
         working-directory: ./.github/actions/create-deployment-metadata
-        run: npm install
+        run: npm ci
 
       - name: Create deployment metadata
         id: metadata

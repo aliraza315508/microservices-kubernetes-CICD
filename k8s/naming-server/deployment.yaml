@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: naming-server
-          image: 295504962032.dkr.ecr.us-east-1.amazonaws.com/naming-server:v1
+          image: naming-server:placeholder
           imagePullPolicy: Always
 
           ports:

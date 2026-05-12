@@ -4,6 +4,7 @@ const { execSync } = require("child_process");
 const BUILD_ALL_MARKER = "BUILD_ALL";
 
 const COMMON_K8S_PATH = "k8s/common/";
+const INGRESS_K8S_PATH = "k8s/ingress/";
 
 const WORKFLOW_B_FILE = ".github/workflows/workflow-b-docker-build-push.yml";
 
@@ -92,6 +93,11 @@ function buildMatrix(changedFiles) {
 
   if (changedFiles.some(file => file.startsWith(COMMON_K8S_PATH))) {
     core.info("Common Kubernetes files changed. Building all services.");
+    return ALL_SERVICES;
+  }
+
+  if (changedFiles.some(file => file.startsWith(INGRESS_K8S_PATH))) {
+    core.info("Ingress Kubernetes files changed. Building all services.");
     return ALL_SERVICES;
   }
 
