@@ -3,8 +3,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const STACK_ORDER = ["vpc", "eks", "eks-add-ons", "database", "workflow-b"]
-
+const STACK_ORDER = ["vpc", "database", "eks", "eks-add-ons", "workflow-b"];
 const CONFIG = {
   validActions: ["plan", "apply"],
 

@@ -47,19 +47,6 @@ spec:
             - name: CURRENCY_EXCHANGE_SERVICE_URL
               value: "http://currency-exchange-service:8000"
 
-            - name: DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: DB_USERNAME
-                  optional: true
-
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: DB_PASSWORD
-                  optional: true
 
           resources:
             requests:

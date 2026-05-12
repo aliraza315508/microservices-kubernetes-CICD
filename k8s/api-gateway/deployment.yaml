@@ -50,21 +50,6 @@ spec:
                   key: CONFIG_SERVER_URL
 
 
-            - name: DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: DB_USERNAME
-                  optional: true
-
-
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: DB_PASSWORD
-                  optional: true
-
 
           resources:
             requests:

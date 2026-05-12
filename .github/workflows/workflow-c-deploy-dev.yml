@@ -27,7 +27,6 @@ env:
   DEPLOYMENT_METADATA_FILE: deployment-metadata/deployment-metadata.json
   DB_INSTANCE_IDENTIFIER: ${{ vars.DB_INSTANCE_IDENTIFIER }}
 
-
 concurrency:
   group: workflow-c-deploy-dev-main
   cancel-in-progress: true
@@ -35,7 +34,7 @@ concurrency:
 jobs:
   deploy-dev:
     name: Deploy to EKS Dev
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
 
     steps:
