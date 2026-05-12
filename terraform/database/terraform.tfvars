@@ -16,4 +16,4 @@ deletion_protection = false
 
 skip_final_snapshot = true
 
-terraform_lock_table_name = "currency-system-terraform-locks"
+terraform_lock_table_name = "currency-system-dynamo-db-aliraza315508"

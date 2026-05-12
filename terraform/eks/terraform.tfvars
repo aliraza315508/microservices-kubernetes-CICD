@@ -12,4 +12,4 @@ desired_nodes = 1
 min_nodes     = 1
 max_nodes     = 2
 
-terraform_lock_table_name = "currency-system-terraform-locks"
+terraform_lock_table_name = "currency-system-dynamo-db-aliraza315508"
