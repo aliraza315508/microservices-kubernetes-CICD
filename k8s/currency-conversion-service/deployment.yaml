@@ -44,6 +44,9 @@ spec:
                   name: common-config
                   key: CONFIG_SERVER_URL
 
+            - name: CURRENCY_EXCHANGE_SERVICE_URL
+              value: "http://currency-exchange-service:8000"
+
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
