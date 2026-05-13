@@ -1,5 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
   name: naming-server
   namespace: currency-system
@@ -17,11 +18,32 @@ spec:
     metadata:
       labels:
         app: naming-server
+
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+
       containers:
         - name: naming-server
           image: naming-server:placeholder
           imagePullPolicy: Always
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
 
           ports:
             - containerPort: 8761
@@ -38,18 +60,23 @@ spec:
               cpu: "300m"
               memory: "512Mi"
 
+          startupProbe:
+            tcpSocket:
+              port: 8761
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+
           readinessProbe:
             tcpSocket:
               port: 8761
-            initialDelaySeconds: 20
-            periodSeconds: 10
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
 
           livenessProbe:
             tcpSocket:
               port: 8761
-            initialDelaySeconds: 40
+            initialDelaySeconds: 90
             periodSeconds: 20
-
-
-
-
+            timeoutSeconds: 5
