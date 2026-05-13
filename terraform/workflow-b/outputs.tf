@@ -1,11 +1,31 @@
-output "github_actions_role_arn" {
-  description = "ARN of the IAM role assumed by GitHub Actions"
-  value       = aws_iam_role.github_actions_role.arn
+output "workflow_b_role_arn" {
+  description = "ARN of the IAM role assumed by Workflow B for ECR image push"
+  value       = aws_iam_role.workflow_b_role.arn
 }
 
-output "github_actions_role_name" {
-  description = "Name of the IAM role created for GitHub Actions"
-  value       = aws_iam_role.github_actions_role.name
+output "workflow_b_role_name" {
+  description = "Name of the IAM role assumed by Workflow B"
+  value       = aws_iam_role.workflow_b_role.name
+}
+
+output "workflow_c_role_arn" {
+  description = "ARN of the IAM role assumed by Workflow C for EKS deployment"
+  value       = aws_iam_role.workflow_c_role.arn
+}
+
+output "workflow_c_role_name" {
+  description = "Name of the IAM role assumed by Workflow C"
+  value       = aws_iam_role.workflow_c_role.name
+}
+
+output "terraform_role_arn" {
+  description = "ARN of the IAM role assumed by infrastructure and state-management workflows"
+  value       = aws_iam_role.terraform_role.arn
+}
+
+output "terraform_role_name" {
+  description = "Name of the IAM role assumed by infrastructure and state-management workflows"
+  value       = aws_iam_role.terraform_role.name
 }
 
 output "aws_account_id" {

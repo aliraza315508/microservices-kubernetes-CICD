@@ -39,6 +39,7 @@ on:
       - ".github/workflows/infrastructure-creation-workflow.yml"
 
 permissions:
+  id-token: write
   contents: read
 
 concurrency:

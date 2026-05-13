@@ -6,4 +6,3 @@ metadata:
 
 data:
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://naming-server:8761/eureka"
-  CONFIG_SERVER_URL: ""

@@ -38,11 +38,7 @@ spec:
                   name: common-config
                   key: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
 
-            - name: CONFIG_SERVER_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: common-config
-                  key: CONFIG_SERVER_URL
+
 
             - name: DB_HOST
               valueFrom:

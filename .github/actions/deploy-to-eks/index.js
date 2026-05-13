@@ -164,7 +164,6 @@ function createOrUpdateCommonConfig(namespace, databaseInfo) {
     data: {
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:
         "http://naming-server:8761/eureka",
-      CONFIG_SERVER_URL: "",
       DB_HOST: databaseInfo.dbHost,
       DB_PORT: databaseInfo.dbPort,
       DB_NAME: databaseInfo.dbName

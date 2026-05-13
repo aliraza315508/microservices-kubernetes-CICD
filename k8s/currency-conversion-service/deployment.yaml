@@ -38,11 +38,6 @@ spec:
                   name: common-config
                   key: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
 
-            - name: CONFIG_SERVER_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: common-config
-                  key: CONFIG_SERVER_URL
 
             - name: CURRENCY_EXCHANGE_SERVICE_URL
               value: "http://currency-exchange-service:8000"

@@ -41,16 +41,6 @@ spec:
 
 
 
-
-
-            - name: CONFIG_SERVER_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: common-config
-                  key: CONFIG_SERVER_URL
-
-
-
           resources:
             requests:
               cpu: "100m"
