@@ -1,0 +1,15 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+
+metadata:
+  name: currency-exchange-service-pdb
+  namespace: currency-system
+  labels:
+    app: currency-exchange-service
+
+spec:
+  minAvailable: 1
+
+  selector:
+    matchLabels:
+      app: currency-exchange-service

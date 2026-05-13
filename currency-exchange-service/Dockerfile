@@ -12,11 +12,12 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17.0.12_7-jre-jammy
 WORKDIR /app
 
-RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
+RUN groupadd --gid 10001 appgroup \
+    && useradd --uid 10001 --gid 10001 --home-dir /app --shell /usr/sbin/nologin appuser
 
-COPY --from=builder --chown=appuser:appgroup /app/target/*.jar app.jar
+COPY --from=builder --chown=10001:10001 /app/target/*.jar app.jar
 
-USER appuser
+USER 10001:10001
 
 EXPOSE 8000
 
