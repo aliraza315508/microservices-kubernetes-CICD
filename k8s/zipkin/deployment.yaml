@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: zipkin
+  namespace: currency-system
+  labels:
+    app: zipkin
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: zipkin
+
+  template:
+    metadata:
+      labels:
+        app: zipkin
+
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+
+      containers:
+        - name: zipkin
+          image: openzipkin/zipkin:latest
+          imagePullPolicy: Always
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+
+          ports:
+            - containerPort: 9411
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 9411
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9411
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9411
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 5
