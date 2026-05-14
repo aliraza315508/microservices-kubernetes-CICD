@@ -99,6 +99,11 @@ function applyCommonResources() {
   run("kubectl apply -k k8s/common");
 }
 
+// Applies Zipkin resources before application services start sending traces.
+function applyZipkinResources() {
+  run("kubectl apply -k k8s/zipkin");
+}
+
 // Applies Kubernetes manifests only for the services selected for deployment.
 function applyServiceResources(services) {
   const uniqueKustomizePaths = [
@@ -164,9 +169,13 @@ function createOrUpdateCommonConfig(namespace, databaseInfo) {
     data: {
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:
         "http://naming-server:8761/eureka",
+      CONFIG_SERVER_URL: "",
       DB_HOST: databaseInfo.dbHost,
       DB_PORT: databaseInfo.dbPort,
-      DB_NAME: databaseInfo.dbName
+      DB_NAME: databaseInfo.dbName,
+      ZIPKIN_ENDPOINT: "http://zipkin:9411/api/v2/spans",
+      TRACING_SAMPLING_PROBABILITY: "1.0",
+      MANAGEMENT_TRACING_ENABLED: "true"
     }
   };
 
@@ -289,6 +298,7 @@ function main() {
     updateKubeconfig(eksClusterName, metadata.aws_region);
 
     applyCommonResources();
+    applyZipkinResources();
 
     const databaseInfo = getDatabaseConnectionInfo(
       dbInstanceIdentifier,
