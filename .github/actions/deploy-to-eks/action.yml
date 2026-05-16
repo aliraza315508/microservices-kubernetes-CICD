@@ -25,7 +25,22 @@ inputs:
   db_password:
     description: Database password from GitHub Secrets
     required: true
+  jwt_secret:
+    description: JWT signing secret used by API Gateway
+    required: true
 
+  jwt_username:
+    description: Username used for API Gateway login
+    required: true
+
+  jwt_password:
+    description: Password used for API Gateway login
+    required: true
+
+  jwt_expiration_minutes:
+    description: JWT expiration time in minutes
+    required: false
+    default: "60"
 
 outputs:
   full_sha:

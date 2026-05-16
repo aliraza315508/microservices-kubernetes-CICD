@@ -190,11 +190,24 @@ function createOrUpdateCommonConfig(namespace, databaseInfo) {
 }
 
 // Creates or updates the app-secrets Secret with sensitive DB credentials.
-function createOrUpdateAppSecrets(namespace, dbUsername, dbPassword) {
+function createOrUpdateAppSecrets(
+  namespace,
+  dbUsername,
+  dbPassword,
+  jwtSecret,
+  jwtUsername,
+  jwtPassword,
+  jwtExpirationMinutes
+) {
   const missingSecrets = [];
 
-  if (!dbUsername) missingSecrets.push("db_username");
-  if (!dbPassword) missingSecrets.push("db_password");
+  if (!dbUsername) missingSecrets.push("DB_USERNAME");
+  if (!dbPassword) missingSecrets.push("DB_PASSWORD");
+  if (!jwtSecret) missingSecrets.push("JWT_SECRET");
+  if (!jwtUsername) missingSecrets.push("JWT_USERNAME");
+  if (!jwtPassword) missingSecrets.push("JWT_PASSWORD");
+
+  const finalJwtExpirationMinutes = jwtExpirationMinutes || "60";
 
   if (missingSecrets.length > 0) {
     throw new Error(`Missing required secret inputs: ${missingSecrets.join(", ")}`);
@@ -210,7 +223,11 @@ function createOrUpdateAppSecrets(namespace, dbUsername, dbPassword) {
     type: "Opaque",
     stringData: {
       DB_USERNAME: dbUsername,
-      DB_PASSWORD: dbPassword
+      DB_PASSWORD: dbPassword,
+      JWT_SECRET: jwtSecret,
+      JWT_USERNAME: jwtUsername,
+      JWT_PASSWORD: jwtPassword,
+      JWT_EXPIRATION_MINUTES: finalJwtExpirationMinutes
     }
   };
 
@@ -275,6 +292,10 @@ function main() {
 
     const dbUsername = core.getInput("db_username", { required: true });
     const dbPassword = core.getInput("db_password", { required: true });
+    const jwtSecret = core.getInput("jwt_secret", { required: true });
+    const jwtUsername = core.getInput("jwt_username", { required: true });
+    const jwtPassword = core.getInput("jwt_password", { required: true });
+    const jwtExpirationMinutes = core.getInput("jwt_expiration_minutes") || "60";
 
     const metadata = readDeploymentMetadata(deploymentMetadataFile);
     validateMetadata(metadata);
@@ -306,7 +327,16 @@ function main() {
     );
 
     createOrUpdateCommonConfig(k8sNamespace, databaseInfo);
-    createOrUpdateAppSecrets(k8sNamespace, dbUsername, dbPassword);
+
+    createOrUpdateAppSecrets(
+      k8sNamespace,
+      dbUsername,
+      dbPassword,
+      jwtSecret,
+      jwtUsername,
+      jwtPassword,
+      jwtExpirationMinutes
+    );
 
     if (metadata.services.length === 0) {
       core.info("No services found in deployment metadata. Config and secrets were updated.");

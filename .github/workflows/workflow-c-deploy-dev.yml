@@ -86,6 +86,10 @@ jobs:
           db_instance_identifier: ${{ env.DB_INSTANCE_IDENTIFIER }}
           db_username: ${{ secrets.DB_USERNAME }}
           db_password: ${{ secrets.DB_PASSWORD }}
+          jwt_secret: ${{ secrets.JWT_SECRET }}
+          jwt_username: ${{ secrets.JWT_USERNAME }}
+          jwt_password: ${{ secrets.JWT_PASSWORD }}
+          jwt_expiration_minutes: ${{ secrets.JWT_EXPIRATION_MINUTES }}
 
       - name: Show deployment outputs
         run: |

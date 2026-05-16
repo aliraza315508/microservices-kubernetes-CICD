@@ -86,6 +86,30 @@ spec:
                   name: common-config
                   key: MANAGEMENT_TRACING_ENABLED
 
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_SECRET
+
+            - name: JWT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_USERNAME
+
+            - name: JWT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_PASSWORD
+
+            - name: JWT_EXPIRATION_MINUTES
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_EXPIRATION_MINUTES
+
 
           resources:
             requests:
