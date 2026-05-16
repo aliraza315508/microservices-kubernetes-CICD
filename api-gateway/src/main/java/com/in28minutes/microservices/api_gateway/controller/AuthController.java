@@ -3,6 +3,7 @@ package com.in28minutes.microservices.api_gateway.controller;
 import com.in28minutes.microservices.api_gateway.config.JwtProperties;
 import com.in28minutes.microservices.api_gateway.dto.LoginRequest;
 import com.in28minutes.microservices.api_gateway.dto.LoginResponse;
+import com.in28minutes.microservices.api_gateway.exception.InvalidLoginException;
 import com.in28minutes.microservices.api_gateway.service.JwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +33,7 @@ public class AuthController {
         boolean validPassword = jwtProperties.getPassword().equals(loginRequest.getPassword());
 
         if (!validUsername || !validPassword) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            throw new InvalidLoginException();
         }
 
         String token = jwtService.generateToken(loginRequest.getUsername());
