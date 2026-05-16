@@ -20,7 +20,8 @@ public class JwtAuthenticationFilter implements WebFilter {
 
 
     //we will use JwtService to validate JWT token
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService)
+    {
         this.jwtService = jwtService;
     }
 
@@ -31,23 +32,29 @@ public class JwtAuthenticationFilter implements WebFilter {
 
         ServerHttpRequest request = exchange.getRequest();
 
-        String authorizationHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        String authorizationHeader =
+                request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return chain.filter(exchange);
         }
 
         String token = authorizationHeader.substring(7);
-        String username = jwtService.extractUsername(token);
 
-        if (!jwtService.isTokenValid(token, username)) {
+        try {
+            String username = jwtService.extractUsername(token);
+
+            if (!jwtService.isTokenValid(token, username)) {
+                return chain.filter(exchange);
+            }
+
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
+
+            return chain.filter(exchange)
+                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
+        } catch (Exception e){
             return chain.filter(exchange);
         }
-
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
-
-        return chain.filter(exchange)
-                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
     }
 }
