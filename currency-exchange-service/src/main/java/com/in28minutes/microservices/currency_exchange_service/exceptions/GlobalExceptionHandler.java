@@ -4,6 +4,7 @@ import com.in28minutes.microservices.currency_exchange_service.entity.CurrencyEx
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler{
 
+    @ExceptionHandler(CurrencyExchangeNotFoundException.class)
     public ResponseEntity<ApiErrorResponse>
     handleCurrencyExchangeNotFoundException
             (
@@ -30,6 +32,7 @@ public class GlobalExceptionHandler{
     }
 
 
+    @ExceptionHandler({Exception.class})
     public  ResponseEntity<ApiErrorResponse>
     handleGenericException (Exception exception ,
                             HttpServletRequest request) {

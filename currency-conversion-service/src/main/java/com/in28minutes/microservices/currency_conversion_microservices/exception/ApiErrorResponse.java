@@ -1,4 +1,4 @@
-package com.in28minutes.microservices.currency_exchange_service.exceptions;
+package com.in28minutes.microservices.currency_conversion_microservices.exception;
 
 import java.time.LocalDateTime;
 
