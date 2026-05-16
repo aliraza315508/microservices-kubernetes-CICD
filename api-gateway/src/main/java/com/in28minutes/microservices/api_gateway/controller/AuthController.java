@@ -5,6 +5,7 @@ import com.in28minutes.microservices.api_gateway.dto.LoginRequest;
 import com.in28minutes.microservices.api_gateway.dto.LoginResponse;
 import com.in28minutes.microservices.api_gateway.exception.InvalidLoginException;
 import com.in28minutes.microservices.api_gateway.service.JwtService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,8 +28,7 @@ public class AuthController {
 
     //login endpoint for generating JWT token
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
-
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         boolean validUsername = jwtProperties.getUsername().equals(loginRequest.getUsername());
         boolean validPassword = jwtProperties.getPassword().equals(loginRequest.getPassword());
 

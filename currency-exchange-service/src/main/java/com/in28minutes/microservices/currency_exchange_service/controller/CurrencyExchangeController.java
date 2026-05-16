@@ -2,15 +2,18 @@ package com.in28minutes.microservices.currency_exchange_service.controller;
 
 import com.in28minutes.microservices.currency_exchange_service.entity.CurrencyExchange;
 import com.in28minutes.microservices.currency_exchange_service.exceptions.CurrencyExchangeNotFoundException;
+import jakarta.validation.constraints.NotBlank;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import com.in28minutes.microservices.currency_exchange_service.repository.CurrencyExchangeRepository;
 
+@Validated
 @RestController
 public class CurrencyExchangeController {
 
@@ -26,8 +29,10 @@ public class CurrencyExchangeController {
 
     @GetMapping("/currency-exchange/from/{from}/to/{to}")
     public CurrencyExchange retrieveExchangeValue(
-            @PathVariable String from,
-            @PathVariable String to) {
+            @PathVariable
+            @NotBlank(message = "From currency is required") String from,
+            @PathVariable
+            @NotBlank(message = "To currency is required") String to) {
 
 
         logger.info("Retrieving exchange value from {} to {}", from, to);
