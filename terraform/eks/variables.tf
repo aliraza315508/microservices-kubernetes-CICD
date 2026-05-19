@@ -19,7 +19,7 @@ variable "kubernetes_version" {
 variable "allowed_cidr" {
   description = "CIDR allowed to access the EKS public API endpoint"
   type        = string
-  default     = "76.124.66.34/32"
+  default     = "0.0.0.0/0"
 }
 
 variable "node_instance_type" {
