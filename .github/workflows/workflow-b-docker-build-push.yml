@@ -1,6 +1,17 @@
 name: Workflow B - Build and Push to Amazon ECR
 
 on:
+  workflow_dispatch:
+    inputs:
+      build_mode:
+        description: "Which services to build"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - changed
+
   workflow_run:
     workflows:
       - Java CI - Microservices
