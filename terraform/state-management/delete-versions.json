@@ -1,0 +1,109 @@
+{
+    "Objects":  [
+                    {
+                        "Key":  "database/terraform.tfstate",
+                        "VersionId":  "9ht6_FiBKKwi5sifVo8FU9hIz7wwPEdL"
+                    },
+                    {
+                        "Key":  "database/terraform.tfstate",
+                        "VersionId":  "JLvWvAsUE_cf2eM_gqN7myLkLspoXMlE"
+                    },
+                    {
+                        "Key":  "database/terraform.tfstate",
+                        "VersionId":  "F1yCopa_8RKw8pGkn9ltBF4DM3aiOjmP"
+                    },
+                    {
+                        "Key":  "eks-add-ons/terraform.tfstate",
+                        "VersionId":  "vClTwIxmnqQXml0M0qTKdaUnekwsTMGE"
+                    },
+                    {
+                        "Key":  "eks-add-ons/terraform.tfstate",
+                        "VersionId":  "cmNt_KUx0rHY6mebTOEOI0S3Z.ssn0s5"
+                    },
+                    {
+                        "Key":  "eks-add-ons/terraform.tfstate",
+                        "VersionId":  "8R6TI_SyI_11fzzBzeRmmK5uFx3.ifj."
+                    },
+                    {
+                        "Key":  "eks-add-ons/terraform.tfstate",
+                        "VersionId":  "lGZk.kIINqTR2ReICgoC6PfrCqhaQO3d"
+                    },
+                    {
+                        "Key":  "eks-add-ons/terraform.tfstate",
+                        "VersionId":  "QGbFOl2PhasrQY1mDJYI3c4XR3DW9z7M"
+                    },
+                    {
+                        "Key":  "eks/terraform.tfstate",
+                        "VersionId":  "iu7RJ3XG2HIYFv.DHVPm2FqXfvfTBzpa"
+                    },
+                    {
+                        "Key":  "eks/terraform.tfstate",
+                        "VersionId":  "hMD3to78sYXMPFTE_ly.jdjimMb4lT7N"
+                    },
+                    {
+                        "Key":  "eks/terraform.tfstate",
+                        "VersionId":  "GsWLPMe3Bqb1eZT6gawt2wUNG_6b8Z_2"
+                    },
+                    {
+                        "Key":  "eks/terraform.tfstate",
+                        "VersionId":  "ly7bLqp0g8P4giyCDHi0lRCCgt8sMOev"
+                    },
+                    {
+                        "Key":  "eks/terraform.tfstate",
+                        "VersionId":  "pdYg_RFh8YZYnwbktOseoHH6y9Yu4nOk"
+                    },
+                    {
+                        "Key":  "eks/terraform.tfstate",
+                        "VersionId":  "J9cLKPsuKHmklYJQYLLlpZV9d3cTP.TB"
+                    },
+                    {
+                        "Key":  "state-management/terraform.tfstate",
+                        "VersionId":  "null"
+                    },
+                    {
+                        "Key":  "state-management/terraform.tfstate",
+                        "VersionId":  "M_vt7RXv4X_YcT6mfgVAz2XLppLRbmit"
+                    },
+                    {
+                        "Key":  "vpc/terraform.tfstate",
+                        "VersionId":  "t8BVc2Zn2tcjfaYyN3v3u.TO1bUJUPIU"
+                    },
+                    {
+                        "Key":  "vpc/terraform.tfstate",
+                        "VersionId":  "UYsTIUSfuZd9aInTplz8JCh5jmdNPaWF"
+                    },
+                    {
+                        "Key":  "vpc/terraform.tfstate",
+                        "VersionId":  "VsVar9rF39PD9XlEUQw2GQyWxnLDvlNz"
+                    },
+                    {
+                        "Key":  "vpc/terraform.tfstate",
+                        "VersionId":  "4k0_kbk3_qi28KWiUVg2kApVbBwlN1G4"
+                    },
+                    {
+                        "Key":  "vpc/terraform.tfstate",
+                        "VersionId":  "kfi0QYQsl5PeZN2CKWFPDXUmobRK7jZ1"
+                    },
+                    {
+                        "Key":  "vpc/terraform.tfstate",
+                        "VersionId":  "9XhCjSj6CB0OvdX3OiJBNF2YTrbQe3ev"
+                    },
+                    {
+                        "Key":  "vpc/terraform.tfstate",
+                        "VersionId":  "tTi0MouUPJomDhgIqiaXLUkTePphiGzX"
+                    },
+                    {
+                        "Key":  "vpc/terraform.tfstate",
+                        "VersionId":  "g9xkGCxEqQ31EisBAIU9b2gtiCLZiBj8"
+                    },
+                    {
+                        "Key":  "workflow-b/terraform.tfstate",
+                        "VersionId":  "V_2r_1zBvh594.SeM1uvJz5vPNIrWgUy"
+                    },
+                    {
+                        "Key":  "workflow-b/terraform.tfstate",
+                        "VersionId":  "_K8keHyfqcUFrJuaZbjrk39of7F3j3eA"
+                    }
+                ],
+    "Quiet":  true
+}
