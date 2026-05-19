@@ -4,7 +4,7 @@ cluster_name = "currency-system-cluster"
 
 kubernetes_version = "1.31"
 
-allowed_cidr = "76.124.66.34/32"
+allowed_cidr = "0.0.0.0/0"
 
 node_instance_type = "t3.medium"
 
