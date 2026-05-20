@@ -1,0 +1,53 @@
+name: Workflow 0 - Ansible Preflight Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-0-ansible-preflight
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: 1.9.8
+  KUBECTL_VERSION: v1.31.0
+
+jobs:
+  ansible-preflight-validation:
+    name: Run Ansible Preflight Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Run Ansible preflight playbooks
+        run: |
+          ansible-playbook -i ansible/inventory/local.ini \
+            ansible/playbooks/00-project-structure-validation.yml \
+            ansible/playbooks/01-docker-validation.yml \
+            ansible/playbooks/02-terraform-validation.yml \
+            ansible/playbooks/03-kubernetes-manifest-validation.yml \
+            ansible/playbooks/04-github-actions-validation.yml

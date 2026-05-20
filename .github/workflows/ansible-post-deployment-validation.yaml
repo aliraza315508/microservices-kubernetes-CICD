@@ -1,0 +1,77 @@
+name: Workflow D - Ansible Post Deployment Validation
+
+on:
+  workflow_run:
+    workflows:
+      - Workflow C - Deploy to EKS Dev
+    types:
+      - completed
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: workflow-d-ansible-post-deployment-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER_NAME: currency-system-cluster
+  K8S_NAMESPACE: currency-system
+  KUBECTL_VERSION: v1.31.0
+
+jobs:
+  ansible-post-deployment-validation:
+    name: Run Ansible Post Deployment Validation
+    runs-on: ubuntu-latest
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.WORKFLOW_C_AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region "${AWS_REGION}" \
+            --name "${EKS_CLUSTER_NAME}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible boto3 botocore kubernetes openshift
+
+      - name: Run Ansible post-deployment playbooks
+        run: |
+          ansible-playbook -i ansible/inventory/local.ini \
+            ansible/playbooks/05-aws-infrastructure-verification.yml \
+            ansible/playbooks/06-kubernetes-health-check.yml \
+            ansible/playbooks/07-jwt-api-gateway-smoke-test.yml \
+            ansible/playbooks/08-microservices-endpoint-smoke-test.yml \
+            ansible/playbooks/09-zipkin-validation.yml
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          EKS_CLUSTER_NAME: ${{ env.EKS_CLUSTER_NAME }}
+          K8S_NAMESPACE: ${{ env.K8S_NAMESPACE }}
+          JWT_USERNAME: ${{ secrets.JWT_USERNAME }}
+          JWT_PASSWORD: ${{ secrets.JWT_PASSWORD }}
