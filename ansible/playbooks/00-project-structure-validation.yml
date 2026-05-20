@@ -1,0 +1,141 @@
+- name: Validate project structure
+  hosts: local
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    - name: Show project name
+      ansible.builtin.debug:
+        msg: "Validating project structure for {{ project_name }}"
+
+    - name: Show resolved project paths
+      ansible.builtin.debug:
+        msg:
+          - "Project root: {{ project_root }}"
+          - "Terraform root: {{ terraform_root }}"
+          - "Kubernetes root: {{ kubernetes_root }}"
+          - "Docker/project root: {{ docker_root }}"
+          - "GitHub workflows root: {{ github_workflows_root }}"
+
+    # ------------------------------------------------------------
+    # Root folder checks
+    # ------------------------------------------------------------
+
+    - name: Check Terraform root folder exists
+      ansible.builtin.stat:
+        path: "{{ terraform_root }}"
+      register: terraform_root_check
+
+    - name: Fail if Terraform root folder is missing
+      ansible.builtin.fail:
+        msg: "Terraform root folder is missing: {{ terraform_root }}"
+      when: not terraform_root_check.stat.exists
+
+    - name: Check Kubernetes root folder exists
+      ansible.builtin.stat:
+        path: "{{ kubernetes_root }}"
+      register: kubernetes_root_check
+
+    - name: Fail if Kubernetes root folder is missing
+      ansible.builtin.fail:
+        msg: "Kubernetes root folder is missing: {{ kubernetes_root }}"
+      when: not kubernetes_root_check.stat.exists
+
+    - name: Check Docker/project root folder exists
+      ansible.builtin.stat:
+        path: "{{ docker_root }}"
+      register: docker_root_check
+
+    - name: Fail if Docker/project root folder is missing
+      ansible.builtin.fail:
+        msg: "Docker/project root folder is missing: {{ docker_root }}"
+      when: not docker_root_check.stat.exists
+
+    - name: Check GitHub workflows folder exists
+      ansible.builtin.stat:
+        path: "{{ github_workflows_root }}"
+      register: github_workflows_root_check
+
+    - name: Fail if GitHub workflows folder is missing
+      ansible.builtin.fail:
+        msg: "GitHub workflows folder is missing: {{ github_workflows_root }}"
+      when: not github_workflows_root_check.stat.exists
+
+    # ------------------------------------------------------------
+    # Terraform stack folder checks
+    # ------------------------------------------------------------
+
+    - name: Check Terraform stack folders exist
+      ansible.builtin.stat:
+        path: "{{ terraform_root }}/{{ item }}"
+      loop: "{{ terraform_stacks }}"
+      register: terraform_stack_checks
+
+    - name: Fail if any Terraform stack folder is missing
+      ansible.builtin.fail:
+        msg: "Missing Terraform stack folder: {{ terraform_root }}/{{ item.item }}"
+      loop: "{{ terraform_stack_checks.results }}"
+      when: not item.stat.exists
+
+    # ------------------------------------------------------------
+    # Kubernetes manifest folder checks
+    # ------------------------------------------------------------
+
+    - name: Check Kubernetes manifest folders exist
+      ansible.builtin.stat:
+        path: "{{ kubernetes_root }}/{{ item }}"
+      loop: "{{ kubernetes_manifest_folders }}"
+      register: kubernetes_manifest_folder_checks
+
+    - name: Fail if any Kubernetes manifest folder is missing
+      ansible.builtin.fail:
+        msg: "Missing Kubernetes manifest folder: {{ kubernetes_root }}/{{ item.item }}"
+      loop: "{{ kubernetes_manifest_folder_checks.results }}"
+      when: not item.stat.exists
+
+    # ------------------------------------------------------------
+    # Dockerfile checks
+    # ------------------------------------------------------------
+
+    - name: Check Dockerfiles exist for each microservice
+      ansible.builtin.stat:
+        path: "{{ docker_root }}/{{ item }}/Dockerfile"
+      loop: "{{ docker_services }}"
+      register: dockerfile_checks
+
+    - name: Fail if any Dockerfile is missing
+      ansible.builtin.fail:
+        msg: "Missing Dockerfile: {{ docker_root }}/{{ item.item }}/Dockerfile"
+      loop: "{{ dockerfile_checks.results }}"
+      when: not item.stat.exists
+
+    # ------------------------------------------------------------
+    # GitHub Actions workflow checks
+    # ------------------------------------------------------------
+
+    - name: Check GitHub Actions workflow files exist
+      ansible.builtin.stat:
+        path: "{{ github_workflows_root }}/{{ item }}"
+      loop: "{{ github_workflows }}"
+      register: github_workflow_checks
+
+    - name: Fail if any GitHub Actions workflow file is missing
+      ansible.builtin.fail:
+        msg: "Missing GitHub Actions workflow file: {{ github_workflows_root }}/{{ item.item }}"
+      loop: "{{ github_workflow_checks.results }}"
+      when: not item.stat.exists
+
+    # ------------------------------------------------------------
+    # Final success message
+    # ------------------------------------------------------------
+
+    - name: Project structure validation completed
+      ansible.builtin.debug:
+        msg:
+          - "Project structure validation completed successfully."
+          - "Terraform folders found."
+          - "Kubernetes manifest folders found."
+          - "Dockerfiles found for all services."
+          - "GitHub Actions workflow files found."

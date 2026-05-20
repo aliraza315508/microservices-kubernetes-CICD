@@ -1,0 +1,107 @@
+---
+- name: Test JWT and API Gateway authentication
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show JWT smoke test start message
+      ansible.builtin.debug:
+        msg: "Running JWT/API Gateway smoke test for {{ project_name }}"
+
+    # Get ALB hostname from Kubernetes ingress
+    - name: Get ALB hostname from ingress
+      ansible.builtin.command:
+        cmd: kubectl get ingress -n {{ kubernetes_namespace }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}'
+      register: alb_hostname_result
+      changed_when: false
+
+    # Fail if ALB hostname is empty
+    - name: Fail if ALB hostname is empty
+      ansible.builtin.fail:
+        msg: "ALB hostname was not found in Kubernetes ingress."
+      when: alb_hostname_result.stdout | length == 0
+
+    # Build API Gateway base URL
+    - name: Build API Gateway base URL
+      ansible.builtin.set_fact:
+        api_gateway_base_url: "http://{{ alb_hostname_result.stdout }}"
+
+    # Print API Gateway base URL
+    - name: Print API Gateway base URL
+      ansible.builtin.debug:
+        msg: "API Gateway base URL: {{ api_gateway_base_url }}"
+
+    # Check JWT username is available
+    - name: Fail if JWT username is empty
+      ansible.builtin.fail:
+        msg: "JWT username is empty. Set jwt_username in local.yml or pass JWT_USERNAME from GitHub secrets."
+      when: jwt_username is not defined or jwt_username | length == 0
+
+    # Check JWT password is available
+    - name: Fail if JWT password is empty
+      ansible.builtin.fail:
+        msg: "JWT password is empty. Set jwt_password in local.yml or pass JWT_PASSWORD from GitHub secrets."
+      when: jwt_password is not defined or jwt_password | length == 0
+
+    # Login to API Gateway auth endpoint and get JWT response
+    - name: Login and get JWT token
+      ansible.builtin.uri:
+        url: "{{ api_gateway_base_url }}{{ jwt_login_path }}"
+        method: POST
+        body_format: json
+        body:
+          username: "{{ jwt_username }}"
+          password: "{{ jwt_password }}"
+        status_code: 200
+        return_content: true
+        headers:
+          Content-Type: "application/json"
+      register: jwt_login_result
+
+    # Print JWT login status
+    - name: Print JWT login status
+      ansible.builtin.debug:
+        msg: "JWT login returned status code {{ jwt_login_result.status }}"
+
+    # Extract JWT token from login response
+    - name: Extract JWT token
+      ansible.builtin.set_fact:
+        jwt_token: "{{ jwt_login_result.json.token | default(jwt_login_result.json.jwtToken | default('')) }}"
+
+    # Fail if JWT token was not found
+    - name: Fail if JWT token is empty
+      ansible.builtin.fail:
+        msg: "JWT token was not found in login response. Check whether response field is token or jwtToken."
+      when: jwt_token | length == 0
+
+    # Test protected currency exchange endpoint through API Gateway
+    - name: Test protected API Gateway route with JWT
+      ansible.builtin.uri:
+        url: "{{ api_gateway_base_url }}{{ currency_exchange_test_path }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ jwt_token }}"
+        status_code: 200
+        return_content: true
+      register: protected_route_result
+
+    # Print protected route response
+    - name: Print protected route response
+      ansible.builtin.debug:
+        var: protected_route_result.json
+
+    # Print final success message
+    - name: JWT/API Gateway smoke test completed
+      ansible.builtin.debug:
+        msg:
+          - "JWT/API Gateway smoke test completed successfully."
+          - "ALB hostname was found."
+          - "API Gateway base URL was built."
+          - "JWT login returned 200."
+          - "JWT token was extracted."
+          - "Protected API Gateway route returned 200."

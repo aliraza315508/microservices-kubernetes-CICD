@@ -1,0 +1,108 @@
+---
+- name: Validate Docker configuration
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show Docker validation start message
+      ansible.builtin.debug:
+        msg: "Validating Docker configuration for {{ project_name }}"
+
+    # Show Docker/project root path
+    - name: Show Docker root
+      ansible.builtin.debug:
+        msg: "Docker/project root: {{ docker_root }}"
+
+    # Check Docker CLI is installed
+    - name: Check Docker is installed
+      ansible.builtin.command:
+        cmd: docker version
+      register: docker_version_result
+      changed_when: false
+
+    # Print Docker version output
+    - name: Print Docker version
+      ansible.builtin.debug:
+        var: docker_version_result.stdout_lines
+
+    # Check each microservice folder exists
+    - name: Check microservice folders exist
+      ansible.builtin.stat:
+        path: "{{ docker_root }}/{{ item }}"
+      loop: "{{ docker_services }}"
+      register: docker_service_folder_checks
+
+    # Fail if any microservice folder is missing
+    - name: Fail if any microservice folder is missing
+      ansible.builtin.fail:
+        msg: "Missing microservice folder: {{ docker_root }}/{{ item.item }}"
+      loop: "{{ docker_service_folder_checks.results }}"
+      when: not item.stat.exists
+
+    # Check Dockerfile exists for each microservice
+    - name: Check Dockerfile exists for each microservice
+      ansible.builtin.stat:
+        path: "{{ docker_root }}/{{ item }}/Dockerfile"
+      loop: "{{ docker_services }}"
+      register: dockerfile_checks
+
+    # Fail if any Dockerfile is missing
+    - name: Fail if any Dockerfile is missing
+      ansible.builtin.fail:
+        msg: "Missing Dockerfile: {{ docker_root }}/{{ item.item }}/Dockerfile"
+      loop: "{{ dockerfile_checks.results }}"
+      when: not item.stat.exists
+
+    # Check pom.xml exists for each Java microservice
+    - name: Check pom.xml exists for each microservice
+      ansible.builtin.stat:
+        path: "{{ docker_root }}/{{ item }}/pom.xml"
+      loop: "{{ docker_services }}"
+      register: pom_file_checks
+
+    # Fail if any pom.xml is missing
+    - name: Fail if any pom.xml is missing
+      ansible.builtin.fail:
+        msg: "Missing pom.xml: {{ docker_root }}/{{ item.item }}/pom.xml"
+      loop: "{{ pom_file_checks.results }}"
+      when: not item.stat.exists
+
+    # Check Maven wrapper exists for each microservice
+    - name: Check Maven wrapper exists for each microservice
+      ansible.builtin.stat:
+        path: "{{ docker_root }}/{{ item }}/mvnw"
+      loop: "{{ docker_services }}"
+      register: maven_wrapper_checks
+
+    # Fail if any Maven wrapper is missing
+    - name: Fail if any Maven wrapper is missing
+      ansible.builtin.fail:
+        msg: "Missing Maven wrapper: {{ docker_root }}/{{ item.item }}/mvnw"
+      loop: "{{ maven_wrapper_checks.results }}"
+      when: not item.stat.exists
+
+    # Check Dockerfile uses Eclipse Temurin Java image
+    - name: Check Dockerfile contains Java base image
+      ansible.builtin.command:
+        cmd: grep -i "eclipse-temurin" Dockerfile
+        chdir: "{{ docker_root }}/{{ item }}"
+      loop: "{{ docker_services }}"
+      register: dockerfile_java_base_image_checks
+      changed_when: false
+
+    # Final success message
+    - name: Docker validation completed
+      ansible.builtin.debug:
+        msg:
+          - "Docker validation completed successfully."
+          - "Docker command is available."
+          - "Microservice folders exist."
+          - "Dockerfiles exist for all services."
+          - "pom.xml files exist for all services."
+          - "Maven wrappers exist for all services."
+          - "Dockerfiles contain expected Java base image."

@@ -1,0 +1,116 @@
+---
+- name: Validate Zipkin observability
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show Zipkin validation start message
+      ansible.builtin.debug:
+        msg: "Running Zipkin validation for {{ project_name }}"
+
+    # Skip message if Zipkin is disabled
+    - name: Show Zipkin disabled message
+      ansible.builtin.debug:
+        msg: "Zipkin validation is disabled. Set zipkin_enabled=true when Zipkin is deployed."
+      when: not zipkin_enabled | default(false) | bool
+
+    # Check kubectl is available
+    - name: Check kubectl is installed
+      ansible.builtin.command:
+        cmd: kubectl version --client=true
+      register: kubectl_version_result
+      changed_when: false
+      when: zipkin_enabled | default(false) | bool
+
+    # Check Zipkin service exists
+    - name: Check Zipkin service exists
+      ansible.builtin.command:
+        cmd: kubectl get service {{ zipkin_service_name }} -n {{ kubernetes_namespace }}
+      register: zipkin_service_result
+      changed_when: false
+      when: zipkin_enabled | default(false) | bool
+
+    # Check Zipkin endpoints exist
+    - name: Check Zipkin endpoints exist
+      ansible.builtin.command:
+        cmd: kubectl get endpoints {{ zipkin_service_name }} -n {{ kubernetes_namespace }} -o jsonpath='{.subsets[*].addresses[*].ip}'
+      register: zipkin_endpoint_result
+      changed_when: false
+      when: zipkin_enabled | default(false) | bool
+
+    # Fail if Zipkin service has no endpoint addresses
+    - name: Fail if Zipkin has no endpoint addresses
+      ansible.builtin.fail:
+        msg: "Zipkin service exists but has no endpoint addresses."
+      when:
+        - zipkin_enabled | default(false) | bool
+        - zipkin_endpoint_result.stdout | length == 0
+
+    # Start kubectl port-forward for Zipkin
+    - name: Start Zipkin port-forward
+      ansible.builtin.shell: "nohup kubectl port-forward service/{{ zipkin_service_name }} {{ zipkin_local_port }}:{{ zipkin_service_port }} -n {{ kubernetes_namespace }} > /tmp/zipkin-port-forward.log 2>&1 & echo $!"
+      register: zipkin_port_forward_pid
+      changed_when: false
+      when: zipkin_enabled | default(false) | bool
+
+    # Wait for Zipkin port-forward to become ready
+    - name: Wait for Zipkin port-forward
+      ansible.builtin.pause:
+        seconds: 5
+      when: zipkin_enabled | default(false) | bool
+
+    # Test Zipkin health endpoint
+    - name: Test Zipkin health endpoint
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ zipkin_local_port }}{{ zipkin_health_path }}"
+        method: GET
+        status_code: 200
+        return_content: true
+      register: zipkin_health_result
+      when: zipkin_enabled | default(false) | bool
+
+    # Print Zipkin health response
+    - name: Print Zipkin health response
+      ansible.builtin.debug:
+        var: zipkin_health_result.json
+      when: zipkin_enabled | default(false) | bool
+
+    # Test Zipkin API service names endpoint
+    - name: Test Zipkin service names endpoint
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ zipkin_local_port }}/api/v2/services"
+        method: GET
+        status_code: 200
+        return_content: true
+      register: zipkin_services_result
+      when: zipkin_enabled | default(false) | bool
+
+    # Print Zipkin service names response
+    - name: Print Zipkin service names response
+      ansible.builtin.debug:
+        var: zipkin_services_result.json
+      when: zipkin_enabled | default(false) | bool
+
+    # Stop Zipkin port-forward
+    - name: Stop Zipkin port-forward
+      ansible.builtin.shell: "kill {{ zipkin_port_forward_pid.stdout }} || true"
+      changed_when: false
+      when:
+        - zipkin_enabled | default(false) | bool
+        - zipkin_port_forward_pid.stdout is defined
+
+    # Print final success message
+    - name: Zipkin validation completed
+      ansible.builtin.debug:
+        msg:
+          - "Zipkin validation completed successfully."
+          - "Zipkin service exists."
+          - "Zipkin endpoints exist."
+          - "Zipkin health endpoint returned 200."
+          - "Zipkin API service names endpoint returned 200."
+      when: zipkin_enabled | default(false) | bool

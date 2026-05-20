@@ -1,0 +1,158 @@
+---
+- name: Test microservices endpoints through API Gateway
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show microservices smoke test start message
+      ansible.builtin.debug:
+        msg: "Running microservices endpoint smoke test for {{ project_name }}"
+
+    # Get ALB hostname from Kubernetes ingress
+    - name: Get ALB hostname from ingress
+      ansible.builtin.command:
+        cmd: kubectl get ingress -n {{ kubernetes_namespace }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}'
+      register: alb_hostname_result
+      changed_when: false
+
+    # Fail if ALB hostname is empty
+    - name: Fail if ALB hostname is empty
+      ansible.builtin.fail:
+        msg: "ALB hostname was not found in Kubernetes ingress."
+      when: alb_hostname_result.stdout | length == 0
+
+    # Build API Gateway base URL
+    - name: Build API Gateway base URL
+      ansible.builtin.set_fact:
+        api_gateway_base_url: "http://{{ alb_hostname_result.stdout }}"
+
+    # Print API Gateway base URL
+    - name: Print API Gateway base URL
+      ansible.builtin.debug:
+        msg: "API Gateway base URL: {{ api_gateway_base_url }}"
+
+    # Check JWT username is available
+    - name: Fail if JWT username is empty
+      ansible.builtin.fail:
+        msg: "JWT username is empty. Set jwt_username in local.yml or pass JWT_USERNAME from GitHub secrets."
+      when: jwt_username is not defined or jwt_username | length == 0
+
+    # Check JWT password is available
+    - name: Fail if JWT password is empty
+      ansible.builtin.fail:
+        msg: "JWT password is empty. Set jwt_password in local.yml or pass JWT_PASSWORD from GitHub secrets."
+      when: jwt_password is not defined or jwt_password | length == 0
+
+    # Login and get JWT token
+    - name: Login and get JWT token
+      ansible.builtin.uri:
+        url: "{{ api_gateway_base_url }}{{ jwt_login_path }}"
+        method: POST
+        body_format: json
+        body:
+          username: "{{ jwt_username }}"
+          password: "{{ jwt_password }}"
+        status_code: 200
+        return_content: true
+        headers:
+          Content-Type: "application/json"
+      register: jwt_login_result
+
+    # Extract JWT token from login response
+    - name: Extract JWT token
+      ansible.builtin.set_fact:
+        jwt_token: "{{ jwt_login_result.json.token | default(jwt_login_result.json.jwtToken | default('')) }}"
+
+    # Fail if JWT token was not found
+    - name: Fail if JWT token is empty
+      ansible.builtin.fail:
+        msg: "JWT token was not found in login response. Check whether response field is token or jwtToken."
+      when: jwt_token | length == 0
+
+    # Test currency-exchange endpoint through API Gateway
+    - name: Test currency-exchange endpoint
+      ansible.builtin.uri:
+        url: "{{ api_gateway_base_url }}{{ currency_exchange_test_path }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ jwt_token }}"
+        status_code: 200
+        return_content: true
+      register: currency_exchange_result
+
+    # Print currency-exchange response
+    - name: Print currency-exchange response
+      ansible.builtin.debug:
+        var: currency_exchange_result.json
+
+    # Validate currency-exchange response has expected from currency
+    - name: Validate currency-exchange from value
+      ansible.builtin.assert:
+        that:
+          - currency_exchange_result.json.from == "USD"
+        success_msg: "currency-exchange returned expected from value."
+        fail_msg: "currency-exchange did not return expected from value."
+
+    # Validate currency-exchange response has expected to currency
+    - name: Validate currency-exchange to value
+      ansible.builtin.assert:
+        that:
+          - currency_exchange_result.json.to == "INR"
+        success_msg: "currency-exchange returned expected to value."
+        fail_msg: "currency-exchange did not return expected to value."
+
+    # Test currency-conversion endpoint through API Gateway
+    - name: Test currency-conversion endpoint
+      ansible.builtin.uri:
+        url: "{{ api_gateway_base_url }}{{ currency_conversion_test_path }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ jwt_token }}"
+        status_code: 200
+        return_content: true
+      register: currency_conversion_result
+
+    # Print currency-conversion response
+    - name: Print currency-conversion response
+      ansible.builtin.debug:
+        var: currency_conversion_result.json
+
+    # Validate currency-conversion response has expected from currency
+    - name: Validate currency-conversion from value
+      ansible.builtin.assert:
+        that:
+          - currency_conversion_result.json.from == "USD"
+        success_msg: "currency-conversion returned expected from value."
+        fail_msg: "currency-conversion did not return expected from value."
+
+    # Validate currency-conversion response has expected to currency
+    - name: Validate currency-conversion to value
+      ansible.builtin.assert:
+        that:
+          - currency_conversion_result.json.to == "INR"
+        success_msg: "currency-conversion returned expected to value."
+        fail_msg: "currency-conversion did not return expected to value."
+
+    # Validate currency-conversion response has expected quantity
+    - name: Validate currency-conversion quantity value
+      ansible.builtin.assert:
+        that:
+          - currency_conversion_result.json.quantity | string == "10"
+        success_msg: "currency-conversion returned expected quantity."
+        fail_msg: "currency-conversion did not return expected quantity."
+
+    # Print final success message
+    - name: Microservices endpoint smoke test completed
+      ansible.builtin.debug:
+        msg:
+          - "Microservices endpoint smoke test completed successfully."
+          - "JWT login worked."
+          - "currency-exchange endpoint returned 200."
+          - "currency-exchange response values were validated."
+          - "currency-conversion endpoint returned 200."
+          - "currency-conversion response values were validated."

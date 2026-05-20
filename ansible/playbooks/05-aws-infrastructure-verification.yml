@@ -1,0 +1,172 @@
+---
+- name: Verify AWS infrastructure
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show AWS verification start message
+      ansible.builtin.debug:
+        msg: "Verifying AWS infrastructure for {{ project_name }} in {{ aws_region }}"
+
+    # Check AWS CLI is installed
+    - name: Check AWS CLI is installed
+      ansible.builtin.command:
+        cmd: aws --version
+      register: aws_cli_version_result
+      changed_when: false
+      failed_when: false
+
+    # Print AWS CLI version
+    - name: Print AWS CLI version
+      ansible.builtin.debug:
+        var: aws_cli_version_result.stdout_lines
+
+    # Check AWS caller identity
+    - name: Check AWS credentials using sts get-caller-identity
+      ansible.builtin.command:
+        cmd: aws sts get-caller-identity --region {{ aws_region }}
+      register: aws_identity_result
+      changed_when: false
+      failed_when: false
+
+    # Print AWS identity result
+    - name: Print AWS identity result
+      ansible.builtin.debug:
+        var: aws_identity_result.stdout_lines
+
+    # Check if EKS cluster exists
+    - name: Check EKS cluster exists
+      ansible.builtin.command:
+        cmd: aws eks describe-cluster --name {{ eks_cluster_name }} --region {{ aws_region }}
+      register: eks_cluster_result
+      changed_when: false
+      failed_when: false
+
+    # Report EKS cluster status
+    - name: Report EKS cluster status
+      ansible.builtin.debug:
+        msg: >-
+          EKS cluster {{ eks_cluster_name }}:
+          {{ 'FOUND' if eks_cluster_result.rc == 0 else 'NOT FOUND' }}
+
+    # Check expected ECR repositories exist
+    - name: Check expected ECR repositories exist
+      ansible.builtin.command:
+        cmd: aws ecr describe-repositories --repository-names {{ item }} --region {{ aws_region }}
+      loop: "{{ expected_ecr_repositories }}"
+      register: ecr_repository_results
+      changed_when: false
+      failed_when: false
+
+    # Report ECR repository status
+    - name: Report ECR repository status
+      ansible.builtin.debug:
+        msg: "ECR repository {{ item.item }}: {{ 'FOUND' if item.rc == 0 else 'NOT FOUND' }}"
+      loop: "{{ ecr_repository_results.results }}"
+
+    # Check RDS database exists
+    - name: Check RDS database exists
+      ansible.builtin.command:
+        cmd: aws rds describe-db-instances --db-instance-identifier {{ rds_db_identifier }} --region {{ aws_region }}
+      register: rds_result
+      changed_when: false
+      failed_when: false
+
+    # Report RDS database status
+    - name: Report RDS database status
+      ansible.builtin.debug:
+        msg: >-
+          RDS database {{ rds_db_identifier }}:
+          {{ 'FOUND' if rds_result.rc == 0 else 'NOT FOUND' }}
+
+    # Check Terraform state S3 bucket exists
+    - name: Check Terraform state S3 bucket exists
+      ansible.builtin.command:
+        cmd: aws s3api head-bucket --bucket {{ terraform_state_bucket_name }}
+      register: terraform_state_bucket_result
+      changed_when: false
+      failed_when: false
+
+    # Report Terraform state S3 bucket status
+    - name: Report Terraform state S3 bucket status
+      ansible.builtin.debug:
+        msg: >-
+          Terraform state bucket {{ terraform_state_bucket_name }}:
+          {{ 'FOUND' if terraform_state_bucket_result.rc == 0 else 'NOT FOUND' }}
+
+    # Check Terraform DynamoDB lock table exists
+    - name: Check Terraform DynamoDB lock table exists
+      ansible.builtin.command:
+        cmd: aws dynamodb describe-table --table-name {{ terraform_lock_table_name }} --region {{ aws_region }}
+      register: terraform_lock_table_result
+      changed_when: false
+      failed_when: false
+
+    # Report Terraform DynamoDB lock table status
+    - name: Report Terraform DynamoDB lock table status
+      ansible.builtin.debug:
+        msg: >-
+          Terraform lock table {{ terraform_lock_table_name }}:
+          {{ 'FOUND' if terraform_lock_table_result.rc == 0 else 'NOT FOUND' }}
+
+    # Check expected GitHub Actions IAM roles exist
+    - name: Check expected GitHub Actions IAM roles exist
+      ansible.builtin.command:
+        cmd: aws iam get-role --role-name {{ item }}
+      loop: "{{ expected_github_iam_roles }}"
+      register: github_iam_role_results
+      changed_when: false
+      failed_when: false
+
+    # Report GitHub Actions IAM role status
+    - name: Report GitHub Actions IAM role status
+      ansible.builtin.debug:
+        msg: "IAM role {{ item.item }}: {{ 'FOUND' if item.rc == 0 else 'NOT FOUND' }}"
+      loop: "{{ github_iam_role_results.results }}"
+
+    # Check IAM OIDC providers exist
+    - name: Check IAM OIDC providers
+      ansible.builtin.command:
+        cmd: aws iam list-open-id-connect-providers
+      register: oidc_provider_result
+      changed_when: false
+      failed_when: false
+
+    # Report IAM OIDC providers
+    - name: Report IAM OIDC providers
+      ansible.builtin.debug:
+        var: oidc_provider_result.stdout_lines
+
+    # Check project VPCs by tag/name keyword
+    - name: Check VPCs related to project
+      ansible.builtin.command:
+        cmd: aws ec2 describe-vpcs --region {{ aws_region }} --filters "Name=tag:Project,Values={{ project_name }}"
+      register: project_vpc_result
+      changed_when: false
+      failed_when: false
+
+    # Report project VPC check
+    - name: Report project VPC check
+      ansible.builtin.debug:
+        msg: >-
+          Project VPC check completed.
+          If output contains empty Vpcs list, no project VPC was found.
+
+    # Print VPC output
+    - name: Print VPC output
+      ansible.builtin.debug:
+        var: project_vpc_result.stdout_lines
+
+    # Final summary message
+    - name: AWS infrastructure verification completed
+      ansible.builtin.debug:
+        msg:
+          - "AWS infrastructure verification completed."
+          - "This playbook reports FOUND or NOT FOUND."
+          - "Because your AWS infrastructure was destroyed, NOT FOUND is expected for most resources."
+          - "Use this later after Terraform apply to confirm required infrastructure was created."

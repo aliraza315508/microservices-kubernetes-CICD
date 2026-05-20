@@ -1,0 +1,122 @@
+---
+- name: Validate GitHub Actions workflows
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show GitHub Actions validation start message
+      ansible.builtin.debug:
+        msg: "Validating GitHub Actions workflows for {{ project_name }}"
+
+    # Show GitHub workflows root path
+    - name: Show GitHub workflows root
+      ansible.builtin.debug:
+        msg: "GitHub workflows root: {{ github_workflows_root }}"
+
+    # Check each workflow file exists
+    - name: Check GitHub Actions workflow files exist
+      ansible.builtin.stat:
+        path: "{{ github_workflows_root }}/{{ item }}"
+      loop: "{{ github_workflows }}"
+      register: github_workflow_file_checks
+
+    # Fail if any workflow file is missing
+    - name: Fail if any GitHub Actions workflow file is missing
+      ansible.builtin.fail:
+        msg: "Missing GitHub Actions workflow file: {{ github_workflows_root }}/{{ item.item }}"
+      loop: "{{ github_workflow_file_checks.results }}"
+      when: not item.stat.exists
+
+    # Check each workflow has name field
+    - name: Check each workflow has name field
+      ansible.builtin.command:
+        cmd: grep -E "^name:" "{{ github_workflows_root }}/{{ item }}"
+      loop: "{{ github_workflows }}"
+      changed_when: false
+
+    # Check each workflow has on trigger section
+    - name: Check each workflow has on trigger section
+      ansible.builtin.command:
+        cmd: grep -E "^on:" "{{ github_workflows_root }}/{{ item }}"
+      loop: "{{ github_workflows }}"
+      changed_when: false
+
+    # Check each workflow has jobs section
+    - name: Check each workflow has jobs section
+      ansible.builtin.command:
+        cmd: grep -E "^jobs:" "{{ github_workflows_root }}/{{ item }}"
+      loop: "{{ github_workflows }}"
+      changed_when: false
+
+    # Confirm Workflow A CI file is configured
+    - name: Confirm Workflow A CI file is configured
+      ansible.builtin.assert:
+        that:
+          - "'workflow-a-ci.yml' in github_workflows"
+        success_msg: "Workflow A CI file is configured."
+        fail_msg: "workflow-a-ci.yml is missing from github_workflows list."
+
+    # Confirm Workflow B Docker build/push file is configured
+    - name: Confirm Workflow B Docker build/push file is configured
+      ansible.builtin.assert:
+        that:
+          - "'workflow-b-docker-build-push.yml' in github_workflows"
+        success_msg: "Workflow B Docker build/push file is configured."
+        fail_msg: "workflow-b-docker-build-push.yml is missing from github_workflows list."
+
+    # Confirm Workflow C deploy file is configured
+    - name: Confirm Workflow C deploy file is configured
+      ansible.builtin.assert:
+        that:
+          - "'workflow-c-deploy-dev.yml' in github_workflows"
+        success_msg: "Workflow C deploy file is configured."
+        fail_msg: "workflow-c-deploy-dev.yml is missing from github_workflows list."
+
+    # Confirm infrastructure workflow file is configured
+    - name: Confirm infrastructure workflow file is configured
+      ansible.builtin.assert:
+        that:
+          - "'infrastructure-creation-workflow.yml' in github_workflows"
+        success_msg: "Infrastructure workflow file is configured."
+        fail_msg: "infrastructure-creation-workflow.yml is missing from github_workflows list."
+
+    # Confirm state management maintenance workflow file is configured
+    - name: Confirm state management maintenance workflow file is configured
+      ansible.builtin.assert:
+        that:
+          - "'maintenance-terraform-state-management.yml' in github_workflows"
+        success_msg: "State management maintenance workflow file is configured."
+        fail_msg: "maintenance-terraform-state-management.yml is missing from github_workflows list."
+
+    # Check Workflow B has AWS OIDC permission
+    - name: Check Workflow B has id-token permission
+      ansible.builtin.command:
+        cmd: grep -E "id-token:[[:space:]]*write" "{{ github_workflows_root }}/workflow-b-docker-build-push.yml"
+      changed_when: false
+
+    # Check Workflow C has AWS OIDC permission
+    - name: Check Workflow C has id-token permission
+      ansible.builtin.command:
+        cmd: grep -E "id-token:[[:space:]]*write" "{{ github_workflows_root }}/workflow-c-deploy-dev.yml"
+      changed_when: false
+
+    # Check infrastructure workflow has AWS OIDC permission
+    - name: Check infrastructure workflow has id-token permission
+      ansible.builtin.command:
+        cmd: grep -E "id-token:[[:space:]]*write" "{{ github_workflows_root }}/infrastructure-creation-workflow.yml"
+      changed_when: false
+
+    # Print final success message
+    - name: GitHub Actions validation completed
+      ansible.builtin.debug:
+        msg:
+          - "GitHub Actions validation completed successfully."
+          - "Workflow files exist."
+          - "Each workflow has name, on, and jobs sections."
+          - "Required workflow files are configured."
+          - "AWS OIDC id-token permissions exist where expected."

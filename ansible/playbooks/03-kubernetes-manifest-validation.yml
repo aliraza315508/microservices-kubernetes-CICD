@@ -1,0 +1,109 @@
+---
+- name: Validate Kubernetes manifests
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show Kubernetes manifest validation start message
+      ansible.builtin.debug:
+        msg: "Validating Kubernetes manifests for {{ project_name }}"
+
+    # Check kubectl CLI is installed
+    - name: Check kubectl is installed
+      ansible.builtin.command:
+        cmd: kubectl version --client=true
+      register: kubectl_version_result
+      changed_when: false
+
+    # Print kubectl version output
+    - name: Print kubectl version
+      ansible.builtin.debug:
+        var: kubectl_version_result.stdout_lines
+
+    # Check kustomization.yaml exists in each Kubernetes folder
+    - name: Check kustomization.yaml exists in each Kubernetes folder
+      ansible.builtin.stat:
+        path: "{{ kubernetes_root }}/{{ item }}/kustomization.yaml"
+      loop: "{{ kubernetes_manifest_folders }}"
+      register: kustomization_yaml_checks
+
+    # Check kustomization.yml exists in each Kubernetes folder
+    - name: Check kustomization.yml exists in each Kubernetes folder
+      ansible.builtin.stat:
+        path: "{{ kubernetes_root }}/{{ item }}/kustomization.yml"
+      loop: "{{ kubernetes_manifest_folders }}"
+      register: kustomization_yml_checks
+
+    # Fail if neither kustomization.yaml nor kustomization.yml exists
+    - name: Fail if any Kubernetes folder is missing kustomization file
+      ansible.builtin.fail:
+        msg: "Missing kustomization.yaml or kustomization.yml in: {{ kubernetes_root }}/{{ item.0.item }}"
+      loop: "{{ kustomization_yaml_checks.results | zip(kustomization_yml_checks.results) | list }}"
+      when:
+        - not item.0.stat.exists
+        - not item.1.stat.exists
+
+    # Validate each Kustomize folder can render valid YAML
+    - name: Validate Kubernetes manifests using kubectl kustomize
+      ansible.builtin.command:
+        cmd: kubectl kustomize "{{ kubernetes_root }}/{{ item }}"
+      loop: "{{ kubernetes_manifest_folders }}"
+      register: kubectl_kustomize_results
+      changed_when: false
+
+    # Check deployment.yaml exists for each microservice
+    - name: Check deployment.yaml exists for each microservice
+      ansible.builtin.stat:
+        path: "{{ kubernetes_root }}/{{ item }}/deployment.yaml"
+      loop: "{{ kubernetes_deployments }}"
+      register: deployment_yaml_checks
+
+    # Fail if deployment.yaml is missing
+    - name: Fail if deployment.yaml is missing
+      ansible.builtin.fail:
+        msg: "Missing deployment.yaml: {{ kubernetes_root }}/{{ item.item }}/deployment.yaml"
+      loop: "{{ deployment_yaml_checks.results }}"
+      when: not item.stat.exists
+
+    # Check service.yaml exists for each service
+    - name: Check service.yaml exists for each service
+      ansible.builtin.stat:
+        path: "{{ kubernetes_root }}/{{ item }}/service.yaml"
+      loop: "{{ kubernetes_services }}"
+      register: service_yaml_checks
+
+    # Fail if service.yaml is missing
+    - name: Fail if service.yaml is missing
+      ansible.builtin.fail:
+        msg: "Missing service.yaml: {{ kubernetes_root }}/{{ item.item }}/service.yaml"
+      loop: "{{ service_yaml_checks.results }}"
+      when: not item.stat.exists
+
+    # Check ingress manifest exists
+    - name: Check ingress manifest exists
+      ansible.builtin.stat:
+        path: "{{ kubernetes_root }}/ingress/ingress.yaml"
+      register: ingress_manifest_check
+
+    # Fail if ingress manifest is missing
+    - name: Fail if ingress manifest is missing
+      ansible.builtin.fail:
+        msg: "Missing ingress manifest: {{ kubernetes_root }}/ingress/ingress.yaml"
+      when: not ingress_manifest_check.stat.exists
+
+    # Print final success message
+    - name: Kubernetes manifest validation completed
+      ansible.builtin.debug:
+        msg:
+          - "Kubernetes manifest validation completed successfully."
+          - "kubectl command is available."
+          - "Kustomization files exist."
+          - "kubectl kustomize passed for all manifest folders."
+          - "deployment.yaml files exist for all services."
+          - "service.yaml files exist for all services."
+          - "ingress.yaml exists."

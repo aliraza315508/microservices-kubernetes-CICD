@@ -1,0 +1,95 @@
+---
+- name: Validate Terraform configuration
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show Terraform validation start message
+      ansible.builtin.debug:
+        msg: "Validating Terraform stacks for {{ project_name }}"
+
+    # Print Terraform root path
+    - name: Show Terraform root
+      ansible.builtin.debug:
+        msg: "Terraform root: {{ terraform_root }}"
+
+    # Check Terraform CLI is installed
+    - name: Check Terraform is installed
+      ansible.builtin.command:
+        cmd: terraform version
+      register: terraform_version_result
+      changed_when: false
+
+    # Print Terraform version output
+    - name: Print Terraform version
+      ansible.builtin.debug:
+        var: terraform_version_result.stdout_lines
+
+    # Check each Terraform stack folder exists
+    - name: Check Terraform stack folders exist
+      ansible.builtin.stat:
+        path: "{{ terraform_root }}/{{ item }}"
+      loop: "{{ terraform_stacks }}"
+      register: terraform_stack_checks
+
+    # Fail if any Terraform stack folder is missing
+    - name: Fail if any Terraform stack folder is missing
+      ansible.builtin.fail:
+        msg: "Missing Terraform stack folder: {{ terraform_root }}/{{ item.item }}"
+      loop: "{{ terraform_stack_checks.results }}"
+      when: not item.stat.exists
+
+    # Run terraform fmt check on each stack
+    - name: Run terraform fmt check on each stack
+      ansible.builtin.command:
+        cmd: terraform fmt -check -recursive
+        chdir: "{{ terraform_root }}/{{ item }}"
+      loop: "{{ terraform_stacks }}"
+      register: terraform_fmt_results
+      changed_when: false
+
+    # Remove cached Terraform init folder so old S3 backend config is not reused
+    - name: Remove cached .terraform directory from each stack
+      ansible.builtin.file:
+        path: "{{ terraform_root }}/{{ item }}/.terraform"
+        state: absent
+      loop: "{{ terraform_stacks }}"
+
+    # Initialize Terraform without backend because AWS backend was destroyed
+    - name: Initialize Terraform without backend for each stack
+      ansible.builtin.command:
+        cmd: terraform init -backend=false
+        chdir: "{{ terraform_root }}/{{ item }}"
+      loop: "{{ terraform_stacks }}"
+      register: terraform_init_results
+      changed_when: false
+      environment:
+        AWS_EC2_METADATA_DISABLED: "true"
+
+    # Run terraform validate on each stack
+    - name: Run terraform validate on each stack
+      ansible.builtin.command:
+        cmd: terraform validate
+        chdir: "{{ terraform_root }}/{{ item }}"
+      loop: "{{ terraform_stacks }}"
+      register: terraform_validate_results
+      changed_when: false
+      environment:
+        AWS_EC2_METADATA_DISABLED: "true"
+
+    # Print final success message
+    - name: Terraform validation completed
+      ansible.builtin.debug:
+        msg:
+          - "Terraform validation completed successfully."
+          - "Terraform command is available."
+          - "Terraform stack folders exist."
+          - "terraform fmt check passed."
+          - "old .terraform backend cache removed."
+          - "terraform init -backend=false passed."
+          - "terraform validate passed."

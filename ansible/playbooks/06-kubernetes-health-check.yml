@@ -1,0 +1,147 @@
+---
+- name: Check Kubernetes deployment health
+  hosts: local
+  gather_facts: false
+
+  # Load shared project variables
+  vars_files:
+    - ../group_vars/local.yml
+
+  tasks:
+    # Print start message
+    - name: Show Kubernetes health check start message
+      ansible.builtin.debug:
+        msg: "Checking Kubernetes health for {{ project_name }} in namespace {{ kubernetes_namespace }}"
+
+    # Check kubectl CLI is available
+    - name: Check kubectl is installed
+      ansible.builtin.command:
+        cmd: kubectl version --client=true
+      register: kubectl_version_result
+      changed_when: false
+
+    # Print kubectl version
+    - name: Print kubectl version
+      ansible.builtin.debug:
+        var: kubectl_version_result.stdout_lines
+
+    # Check current Kubernetes context
+    - name: Show current Kubernetes context
+      ansible.builtin.command:
+        cmd: kubectl config current-context
+      register: kubectl_context_result
+      changed_when: false
+
+    # Print current Kubernetes context
+    - name: Print current Kubernetes context
+      ansible.builtin.debug:
+        var: kubectl_context_result.stdout
+
+    # Check namespace exists
+    - name: Check Kubernetes namespace exists
+      ansible.builtin.command:
+        cmd: kubectl get namespace {{ kubernetes_namespace }}
+      register: namespace_result
+      changed_when: false
+
+    # Check deployments exist
+    - name: Check Kubernetes deployments exist
+      ansible.builtin.command:
+        cmd: kubectl get deployment {{ item }} -n {{ kubernetes_namespace }}
+      loop: "{{ kubernetes_deployments }}"
+      register: deployment_check_results
+      changed_when: false
+
+    # Check deployment rollout status
+    - name: Check deployment rollout status
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment/{{ item }} -n {{ kubernetes_namespace }} --timeout=120s
+      loop: "{{ kubernetes_deployments }}"
+      register: rollout_status_results
+      changed_when: false
+
+    # Check services exist
+    - name: Check Kubernetes services exist
+      ansible.builtin.command:
+        cmd: kubectl get service {{ item }} -n {{ kubernetes_namespace }}
+      loop: "{{ kubernetes_services }}"
+      register: service_check_results
+      changed_when: false
+
+    # Check endpoints exist for each service
+    - name: Check Kubernetes service endpoints exist
+      ansible.builtin.command:
+        cmd: kubectl get endpoints {{ item }} -n {{ kubernetes_namespace }}
+      loop: "{{ kubernetes_services }}"
+      register: endpoint_check_results
+      changed_when: false
+
+    # Fail if any service endpoint has no addresses
+    - name: Verify each service has at least one endpoint address
+      ansible.builtin.command:
+        cmd: kubectl get endpoints {{ item }} -n {{ kubernetes_namespace }} -o jsonpath='{.subsets[*].addresses[*].ip}'
+      loop: "{{ kubernetes_services }}"
+      register: endpoint_address_results
+      changed_when: false
+
+    # Fail if endpoint address output is empty
+    - name: Fail if any service has no endpoint addresses
+      ansible.builtin.fail:
+        msg: "Service {{ item.item }} has no endpoint addresses in namespace {{ kubernetes_namespace }}"
+      loop: "{{ endpoint_address_results.results }}"
+      when: item.stdout | length == 0
+
+    # Check pods are running
+    - name: Get pods in namespace
+      ansible.builtin.command:
+        cmd: kubectl get pods -n {{ kubernetes_namespace }}
+      register: pods_result
+      changed_when: false
+
+    # Print pods
+    - name: Print pods
+      ansible.builtin.debug:
+        var: pods_result.stdout_lines
+
+    # Check ingress exists
+    - name: Check ingress exists
+      ansible.builtin.command:
+        cmd: kubectl get ingress -n {{ kubernetes_namespace }}
+      register: ingress_result
+      changed_when: false
+
+    # Print ingress
+    - name: Print ingress
+      ansible.builtin.debug:
+        var: ingress_result.stdout_lines
+
+    # Get ALB hostname from ingress
+    - name: Get ALB hostname from ingress
+      ansible.builtin.command:
+        cmd: kubectl get ingress -n {{ kubernetes_namespace }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}'
+      register: alb_hostname_result
+      changed_when: false
+
+    # Fail if ALB hostname is empty
+    - name: Fail if ALB hostname is empty
+      ansible.builtin.fail:
+        msg: "ALB hostname was not found in Kubernetes ingress."
+      when: alb_hostname_result.stdout | length == 0
+
+    # Print ALB URL
+    - name: Print API Gateway ALB URL
+      ansible.builtin.debug:
+        msg: "API Gateway base URL: http://{{ alb_hostname_result.stdout }}"
+
+    # Final success message
+    - name: Kubernetes health check completed
+      ansible.builtin.debug:
+        msg:
+          - "Kubernetes health check completed successfully."
+          - "Namespace exists."
+          - "Deployments exist."
+          - "Deployment rollouts are healthy."
+          - "Services exist."
+          - "Service endpoints exist."
+          - "Ingress exists."
+          - "ALB hostname was found."

@@ -1,0 +1,108 @@
+---
+project_name: currency-system
+aws_region: us-east-1
+
+# Project root
+# playbook_dir = ansible/playbooks
+# ../.. moves back to project root
+project_root: "{{ playbook_dir }}/../.."
+
+# Local project paths
+terraform_root: "{{ project_root }}/terraform"
+kubernetes_root: "{{ project_root }}/k8s"
+docker_root: "{{ project_root }}"
+github_workflows_root: "{{ project_root }}/.github/workflows"
+
+# Terraform stacks
+terraform_stacks:
+  - state-management
+  - vpc
+  - eks
+  - eks-add-ons
+  - database
+  - workflow-b
+
+# Kubernetes
+kubernetes_namespace: currency-system
+
+kubernetes_deployments:
+  - naming-server
+  - api-gateway
+  - currency-exchange-service
+  - currency-conversion-service
+
+kubernetes_services:
+  - naming-server
+  - api-gateway
+  - currency-exchange-service
+  - currency-conversion-service
+
+# Kubernetes manifest folders
+kubernetes_manifest_folders:
+  - common
+  - naming-server
+  - api-gateway
+  - currency-exchange-service
+  - currency-conversion-service
+  - ingress
+
+# Docker services
+docker_services:
+  - naming-server
+  - api-gateway
+  - currency-exchange-service
+  - currency-conversion-service
+
+# GitHub Actions workflows
+github_workflows:
+  - workflow-a-ci.yml
+  - workflow-b-docker-build-push.yml
+  - workflow-c-deploy-dev.yml
+  - infrastructure-creation-workflow.yml
+  - maintenance-terraform-state-management.yml
+
+# Service ports
+naming_server_port: 8761
+api_gateway_port: 8765
+currency_exchange_port: 8000
+currency_conversion_port: 8100
+zipkin_port: 9411
+
+# Health paths
+api_gateway_health_path: "/actuator/health"
+naming_server_health_path: "/actuator/health"
+naming_server_eureka_apps_path: "/eureka/apps"
+currency_exchange_health_path: "/actuator/health"
+currency_conversion_health_path: "/actuator/health"
+zipkin_health_path: "/actuator/health"
+
+# JWT test values
+# Local learning/testing only.
+# Before committing to GitHub, move jwt_password to an environment variable.
+jwt_username: "admin"
+jwt_password: "$Ali@420123"
+
+# JWT/API Gateway paths
+jwt_login_path: "/auth/login"
+
+# Business smoke-test paths
+currency_exchange_test_path: "/currency-exchange/from/USD/to/INR"
+currency_conversion_test_path: "/currency-conversion/from/USD/to/INR/quantity/10"
+
+# Expected ECR repositories
+expected_ecr_repositories:
+  - naming-server
+  - api-gateway
+  - currency-exchange-service
+  - currency-conversion-service
+
+# AWS infrastructure expected names
+eks_cluster_name: currency-system-cluster
+rds_db_identifier: currency-system-postgres
+terraform_state_bucket_name: currency-system-s3-aliraza315508
+terraform_lock_table_name: currency-system-terraform-locks
+
+expected_github_iam_roles:
+  - github-actions-terraform-role
+  - github-actions-workflow-b-ecr-role
+  - github-actions-workflow-c-eks-deploy-role
