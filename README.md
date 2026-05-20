@@ -283,14 +283,14 @@ terraform/                 AWS infrastructure as code
 
 Detailed documentation explaining how each technology is used in this project is located in the following files:
 
-
+```text
 **docs/** /n
-**01-application-architecture.md**  /n
-**02-cicd-pipeline.md**    /n
-**03-docker-kubernetes.md**    /n
-**04-infrastructure-automation.md**   /n
-**05-end-to-end-diagram.md**   /n
-
+**01-application-architecture.md**  
+**02-cicd-pipeline.md**    
+**03-docker-kubernetes.md**    
+**04-infrastructure-automation.md**   
+**05-end-to-end-diagram.md**   
+```
 
 These documents explain the project in more depth than the main README.
 
